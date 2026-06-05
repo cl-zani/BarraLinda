@@ -207,9 +207,7 @@
 
     <script>
         // Configuração do Supabase
-        const URL_SUPABASE = 'https://bvxdnnipqnrodkepnmri.supabase.co';
-        const KEY_SUPABASE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2eGRubmlwcW5yb2RrZXBubXJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1ODkxMDcsImV4cCI6MjA5NjE2NTEwN30.uZA0RLnaXRi68UFTAgY4KC83xow9ylr4nAOP9nsQAVY';
-        
+        const API_URL = 'https://meu-backend-fiscal.vercel.app/api/ocorrencias';
         const supabaseCliente = window.supabase.createClient(URL_SUPABASE, KEY_SUPABASE);
         
         let mapa;
@@ -331,92 +329,70 @@
         }
         
         // Função para carregar ocorrências
-        async function carregarOcorrencias() {
-            const status = document.getElementById('statusFilter').value;
-            
-            console.log('Carregando ocorrências, status:', status, 'categorias selecionadas:', Array.from(categoriasSelecionadas));
-            
-            try {
-                let consulta = supabaseCliente.from('ocorrencias').select('*');
-                
-                if (status !== 'todos') {
-                    consulta = consulta.eq('status', status);
-                }
-                
-                const { data, error } = await consulta.order('data_criacao', { ascending: false });
-                
-                if (error) {
-                    console.error('Erro:', error);
-                    document.getElementById('stats').innerHTML = '❌ Erro: ' + error.message;
-                    return;
-                }
-                
-                console.log('Total de ocorrências encontradas:', data.length);
-                
-                // Aplicar filtro de categorias
-                let ocorrenciasFiltradas = data;
-                if (categoriasSelecionadas.size > 0) {
-                    ocorrenciasFiltradas = data.filter(ocorrencia => filtrarPorCategorias(ocorrencia));
-                    console.log(`Ocorrências após filtro de categorias (${categoriasSelecionadas.size} categorias):`, ocorrenciasFiltradas.length);
-                }
-                
-                // Atualizar estatísticas
-                let statsText = `📌 ${ocorrenciasFiltradas.length} ocorrências exibidas`;
-                if (categoriasSelecionadas.size > 0) {
-                    statsText += `\n🏷️ Categorias: ${Array.from(categoriasSelecionadas).join(', ')}`;
-                }
-                if (data.length !== ocorrenciasFiltradas.length) {
-                    statsText += `\n📊 Total no sistema: ${data.length}`;
-                }
-                document.getElementById('stats').innerHTML = statsText;
-                
-                // Remover marcadores antigos
-                marcadores.forEach(marker => mapa.removeLayer(marker));
-                marcadores = [];
-                
-                // Adicionar novos marcadores
-                ocorrenciasFiltradas.forEach(ocorrencia => {
-                    if (ocorrencia.latitude && ocorrencia.longitude) {
-                        let conteudo = `
-                            <div class="popup-content">
-                                <strong>📅 ${new Date(ocorrencia.data_criacao).toLocaleString('pt-BR')}</strong>
-                                <p>${ocorrencia.texto.substring(0, 150)}${ocorrencia.texto.length > 150 ? '...' : ''}</p>
-                        `;
-                        
-                        if (ocorrencia.tags && ocorrencia.tags.length > 0) {
-                            conteudo += `<div style="margin: 5px 0;">`;
-                            ocorrencia.tags.forEach(tag => {
-                                conteudo += `<span class="tag">${tag}</span>`;
-                            });
-                            conteudo += `</div>`;
-                        }
-                        
-                        if (ocorrencia.foto) {
-                            conteudo += `<img src="${ocorrencia.foto}" alt="Foto" style="max-width:100%; border-radius:8px; margin-top:8px;">`;
-                        }
-                        
-                        conteudo += `<br><small>🏷️ Status: ${ocorrencia.status}</small></div>`;
-                        
-                        const marcador = L.marker([ocorrencia.latitude, ocorrencia.longitude])
-                            .bindPopup(conteudo)
-                            .addTo(mapa);
-                        
-                        marcadores.push(marcador);
-                    }
-                });
-                
-                if (marcadores.length > 0) {
-                    const bounds = L.latLngBounds(marcadores.map(m => m.getLatLng()));
-                    mapa.fitBounds(bounds, { padding: [50, 50] });
-                } else if (categoriasSelecionadas.size > 0) {
-                    document.getElementById('stats').innerHTML = `⚠️ Nenhuma ocorrência encontrada para as categorias selecionadas\n🏷️ ${Array.from(categoriasSelecionadas).join(', ')}`;
-                }
-                
-            } catch (erro) {
-                console.error('Erro ao carregar:', erro);
-                document.getElementById('stats').innerHTML = '❌ Erro: ' + erro.message;
-            }
+async function carregarOcorrencias() {
+    const status = document.getElementById('statusFilter').value;
+    const categoria = document.getElementById('categoriaFilter').value;
+    
+    console.log('Carregando ocorrências via backend seguro...');
+    
+    try {
+        // Buscar dados do backend (NÃO tem chaves aqui!)
+        const resposta = await fetch(API_URL);
+        
+        if (!resposta.ok) {
+            throw new Error('Erro ao buscar dados');
         }
+        
+        const data = await resposta.json();
+        console.log('Ocorrências encontradas:', data.length);
+        
+        document.getElementById('stats').innerHTML = `📌 ${data.length} ocorrências`;
+        
+        // Remover marcadores antigos
+        marcadores.forEach(marker => mapa.removeLayer(marker));
+        marcadores = [];
+        
+        // Adicionar novos marcadores
+        data.forEach(ocorrencia => {
+            if (ocorrencia.latitude && ocorrencia.longitude) {
+                let conteudo = `
+                    <div class="popup-content">
+                        <strong>📅 ${new Date(ocorrencia.data_criacao).toLocaleString('pt-BR')}</strong>
+                        <p>${ocorrencia.texto.substring(0, 150)}</p>
+                `;
+                
+                if (ocorrencia.tags && ocorrencia.tags.length > 0) {
+                    conteudo += `<div>`;
+                    ocorrencia.tags.forEach(tag => {
+                        conteudo += `<span class="tag">${tag}</span>`;
+                    });
+                    conteudo += `</div>`;
+                }
+                
+                if (ocorrencia.foto) {
+                    conteudo += `<img src="${ocorrencia.foto}" alt="Foto" style="max-width:100%; border-radius:8px; margin-top:8px;">`;
+                }
+                
+                conteudo += `<br><small>🏷️ Status: ${ocorrencia.status}</small></div>`;
+                
+                const marcador = L.marker([ocorrencia.latitude, ocorrencia.longitude])
+                    .bindPopup(conteudo)
+                    .addTo(mapa);
+                
+                marcadores.push(marcador);
+            }
+        });
+        
+        if (marcadores.length > 0) {
+            const bounds = L.latLngBounds(marcadores.map(m => m.getLatLng()));
+            mapa.fitBounds(bounds, { padding: [50, 50] });
+        }
+        
+    } catch (erro) {
+        console.error('Erro ao carregar:', erro);
+        document.getElementById('stats').innerHTML = '❌ Erro: ' + erro.message;
+    }
+}
         
         // Função para carregar categorias disponíveis
         async function carregarCategorias() {
