@@ -35,6 +35,7 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+            align-items: center;
         }
         .filters select, .filters button {
             padding: 5px 10px;
@@ -47,6 +48,92 @@
             color: #2e7d32;
             cursor: pointer;
             font-weight: bold;
+        }
+        .categoria-container {
+            position: relative;
+            display: inline-block;
+        }
+        .categoria-multiselect {
+            background: white;
+            color: #2e7d32;
+            min-width: 200px;
+            cursor: pointer;
+            padding-right: 25px;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 16px;
+            appearance: none;
+        }
+        .categoria-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1001;
+            display: none;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 5px;
+        }
+        .categoria-dropdown.show {
+            display: block;
+        }
+        .categoria-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #333;
+            transition: background 0.2s;
+        }
+        .categoria-option:hover {
+            background: #e8f5e9;
+        }
+        .categoria-option input {
+            margin: 0;
+            cursor: pointer;
+        }
+        .categoria-option label {
+            cursor: pointer;
+            flex: 1;
+        }
+        .categoria-selecionadas {
+            background: white;
+            color: #2e7d32;
+            min-width: 200px;
+            font-size: 0.85rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+        }
+        .categoria-tag-selecionada {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .categoria-tag-selecionada .remover {
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 4px;
+            color: #666;
+        }
+        .categoria-tag-selecionada .remover:hover {
+            color: #d32f2f;
+        }
+        .placeholder-categoria {
+            color: #999;
+            font-size: 0.85rem;
         }
         #map {
             flex: 1;
@@ -65,6 +152,7 @@
             z-index: 1000;
             font-size: 12px;
             font-weight: bold;
+            max-width: 300px;
         }
         .popup-content {
             max-width: 250px;
@@ -95,6 +183,18 @@
                 <option value="em_andamento">Em andamento</option>
                 <option value="resolvido">Resolvido</option>
             </select>
+            
+            <div class="categoria-container">
+                <div id="categoriaMultiselect" class="categoria-multiselect">
+                    <div id="categoriasSelecionadasDisplay" class="categoria-selecionadas">
+                        <span class="placeholder-categoria">Selecione categorias...</span>
+                    </div>
+                </div>
+                <div id="categoriaDropdown" class="categoria-dropdown">
+                    <!-- Opções serão inseridas via JavaScript -->
+                </div>
+            </div>
+            
             <button id="refreshBtn">🔄 Atualizar</button>
         </div>
     </div>
@@ -106,15 +206,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // ⚠️ COLOQUE AQUI SUAS CHAVES DO SUPABASE ⚠️
-        const URL_SUPABASE = 'https://bvxdnnipqnrodkepnmri.supabase.co';  // SUBSTITUA
-        const KEY_SUPABASE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2eGRubmlwcW5yb2RrZXBubXJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1ODkxMDcsImV4cCI6MjA5NjE2NTEwN30.uZA0RLnaXRi68UFTAgY4KC83xow9ylr4nAOP9nsQAVY';              // SUBSTITUA
+        // Configuração do Supabase
+        const URL_SUPABASE = 'https://bvxdnnipqnrodkepnmri.supabase.co';
+        const KEY_SUPABASE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2eGRubmlwcW5yb2RrZXBubXJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1ODkxMDcsImV4cCI6MjA5NjE2NTEwN30.uZA0RLnaXRi68UFTAgY4KC83xow9ylr4nAOP9nsQAVY';
         
-        // Criar cliente com nome DIFERENTE para evitar conflito
         const supabaseCliente = window.supabase.createClient(URL_SUPABASE, KEY_SUPABASE);
         
         let mapa;
         let marcadores = [];
+        let todasCategorias = []; // Array com todas as categorias disponíveis
+        let categoriasSelecionadas = new Set(); // Set com as categorias selecionadas
         
         // Função para inicializar o mapa
         function inicializarMapa() {
@@ -130,10 +231,110 @@
             document.getElementById('stats').innerHTML = '🔄 Carregando ocorrências...';
         }
         
+        // Função para atualizar o display das categorias selecionadas
+        function atualizarDisplayCategorias() {
+            const display = document.getElementById('categoriasSelecionadasDisplay');
+            display.innerHTML = '';
+            
+            if (categoriasSelecionadas.size === 0) {
+                display.innerHTML = '<span class="placeholder-categoria">Selecione categorias...</span>';
+            } else {
+                categoriasSelecionadas.forEach(categoria => {
+                    const tag = document.createElement('div');
+                    tag.className = 'categoria-tag-selecionada';
+                    tag.innerHTML = `
+                        ${categoria}
+                        <span class="remover" data-categoria="${categoria}">✕</span>
+                    `;
+                    display.appendChild(tag);
+                });
+                
+                // Adicionar evento de remoção para cada tag
+                document.querySelectorAll('.remover').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const categoria = btn.getAttribute('data-categoria');
+                        categoriasSelecionadas.delete(categoria);
+                        atualizarDisplayCategorias();
+                        atualizarCheckboxesDropdown();
+                        carregarOcorrencias(); // Recarregar ocorrências ao remover categoria
+                    });
+                });
+            }
+        }
+        
+        // Função para atualizar os checkboxes no dropdown
+        function atualizarCheckboxesDropdown() {
+            const dropdown = document.getElementById('categoriaDropdown');
+            dropdown.innerHTML = '';
+            
+            if (todasCategorias.length === 0) {
+                dropdown.innerHTML = '<div style="padding: 8px; color: #999;">Nenhuma categoria disponível</div>';
+                return;
+            }
+            
+            todasCategorias.forEach(categoria => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'categoria-option';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = categoria;
+                checkbox.id = `cat_${categoria.replace(/\s/g, '_')}`;
+                checkbox.checked = categoriasSelecionadas.has(categoria);
+                
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    if (checkbox.checked) {
+                        categoriasSelecionadas.add(categoria);
+                    } else {
+                        categoriasSelecionadas.delete(categoria);
+                    }
+                    atualizarDisplayCategorias();
+                    carregarOcorrencias(); // Recarregar ocorrências ao mudar seleção
+                });
+                
+                const label = document.createElement('label');
+                label.htmlFor = checkbox.id;
+                label.textContent = categoria;
+                
+                optionDiv.appendChild(checkbox);
+                optionDiv.appendChild(label);
+                dropdown.appendChild(optionDiv);
+            });
+        }
+        
+        // Função para alternar o dropdown
+        function toggleDropdown() {
+            const dropdown = document.getElementById('categoriaDropdown');
+            dropdown.classList.toggle('show');
+        }
+        
+        // Função para fechar dropdown ao clicar fora
+        function fecharDropdownClickFora(event) {
+            const container = document.querySelector('.categoria-container');
+            if (!container.contains(event.target)) {
+                document.getElementById('categoriaDropdown').classList.remove('show');
+            }
+        }
+        
+        // Função para verificar se uma ocorrência passa no filtro de categorias
+        function filtrarPorCategorias(ocorrencia) {
+            // Se nenhuma categoria foi selecionada, mostrar todas
+            if (categoriasSelecionadas.size === 0) return true;
+            
+            // Se a ocorrência não tem tags, não passa no filtro
+            if (!ocorrencia.tags || !Array.isArray(ocorrencia.tags)) return false;
+            
+            // Verificar se alguma das tags da ocorrência está entre as categorias selecionadas
+            return ocorrencia.tags.some(tag => categoriasSelecionadas.has(tag));
+        }
+        
         // Função para carregar ocorrências
         async function carregarOcorrencias() {
             const status = document.getElementById('statusFilter').value;
-            console.log('Carregando ocorrências, status:', status);
+            
+            console.log('Carregando ocorrências, status:', status, 'categorias selecionadas:', Array.from(categoriasSelecionadas));
             
             try {
                 let consulta = supabaseCliente.from('ocorrencias').select('*');
@@ -150,24 +351,40 @@
                     return;
                 }
                 
-                console.log('Ocorrências encontradas:', data.length);
-                document.getElementById('stats').innerHTML = `📌 ${data.length} ocorrências`;
+                console.log('Total de ocorrências encontradas:', data.length);
+                
+                // Aplicar filtro de categorias
+                let ocorrenciasFiltradas = data;
+                if (categoriasSelecionadas.size > 0) {
+                    ocorrenciasFiltradas = data.filter(ocorrencia => filtrarPorCategorias(ocorrencia));
+                    console.log(`Ocorrências após filtro de categorias (${categoriasSelecionadas.size} categorias):`, ocorrenciasFiltradas.length);
+                }
+                
+                // Atualizar estatísticas
+                let statsText = `📌 ${ocorrenciasFiltradas.length} ocorrências exibidas`;
+                if (categoriasSelecionadas.size > 0) {
+                    statsText += `\n🏷️ Categorias: ${Array.from(categoriasSelecionadas).join(', ')}`;
+                }
+                if (data.length !== ocorrenciasFiltradas.length) {
+                    statsText += `\n📊 Total no sistema: ${data.length}`;
+                }
+                document.getElementById('stats').innerHTML = statsText;
                 
                 // Remover marcadores antigos
                 marcadores.forEach(marker => mapa.removeLayer(marker));
                 marcadores = [];
                 
                 // Adicionar novos marcadores
-                data.forEach(ocorrencia => {
+                ocorrenciasFiltradas.forEach(ocorrencia => {
                     if (ocorrencia.latitude && ocorrencia.longitude) {
                         let conteudo = `
                             <div class="popup-content">
                                 <strong>📅 ${new Date(ocorrencia.data_criacao).toLocaleString('pt-BR')}</strong>
-                                <p>${ocorrencia.texto.substring(0, 150)}</p>
+                                <p>${ocorrencia.texto.substring(0, 150)}${ocorrencia.texto.length > 150 ? '...' : ''}</p>
                         `;
                         
                         if (ocorrencia.tags && ocorrencia.tags.length > 0) {
-                            conteudo += `<div>`;
+                            conteudo += `<div style="margin: 5px 0;">`;
                             ocorrencia.tags.forEach(tag => {
                                 conteudo += `<span class="tag">${tag}</span>`;
                             });
@@ -191,6 +408,8 @@
                 if (marcadores.length > 0) {
                     const bounds = L.latLngBounds(marcadores.map(m => m.getLatLng()));
                     mapa.fitBounds(bounds, { padding: [50, 50] });
+                } else if (categoriasSelecionadas.size > 0) {
+                    document.getElementById('stats').innerHTML = `⚠️ Nenhuma ocorrência encontrada para as categorias selecionadas\n🏷️ ${Array.from(categoriasSelecionadas).join(', ')}`;
                 }
                 
             } catch (erro) {
@@ -199,21 +418,62 @@
             }
         }
         
+        // Função para carregar categorias disponíveis
+        async function carregarCategorias() {
+            try {
+                const { data, error } = await supabaseCliente.from('ocorrencias').select('tags');
+                
+                if (error) {
+                    console.error('Erro ao carregar categorias:', error);
+                    return;
+                }
+                
+                const categoriasSet = new Set();
+                data.forEach(ocorrencia => {
+                    if (ocorrencia.tags && Array.isArray(ocorrencia.tags)) {
+                        ocorrencia.tags.forEach(tag => {
+                            if (tag && tag.trim()) {
+                                categoriasSet.add(tag.trim());
+                            }
+                        });
+                    }
+                });
+                
+                todasCategorias = Array.from(categoriasSet).sort();
+                atualizarCheckboxesDropdown();
+                console.log('Categorias carregadas:', todasCategorias.length);
+                
+            } catch (erro) {
+                console.error('Erro ao carregar categorias:', erro);
+            }
+        }
+        
         // Aguardar o DOM carregar
         document.addEventListener('DOMContentLoaded', () => {
             console.log('DOM carregado, iniciando...');
             inicializarMapa();
             
-            setTimeout(() => {
-                carregarOcorrencias();
-            }, 1000);
+            // Configurar eventos do dropdown
+            const multiselect = document.getElementById('categoriaMultiselect');
+            multiselect.addEventListener('click', toggleDropdown);
+            document.addEventListener('click', fecharDropdownClickFora);
+            
+            // Carregar categorias e depois ocorrências
+            carregarCategorias().then(() => {
+                setTimeout(() => {
+                    carregarOcorrencias();
+                }, 500);
+            });
         });
         
         // Botão de atualizar
-        document.getElementById('refreshBtn').addEventListener('click', carregarOcorrencias);
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            carregarCategorias(); // Recarregar categorias também
+            carregarOcorrencias();
+        });
         document.getElementById('statusFilter').addEventListener('change', carregarOcorrencias);
         
-        console.log('Script do mapa carregado!');
+        console.log('Script do mapa carregado com suporte a múltiplas categorias!');
     </script>
 </body>
 </html>
