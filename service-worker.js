@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fiscal-cidadao-v2';
+const CACHE_NAME = 'fiscal-cidadao-v4';
 const urlsToCache = [
   './',
   './index.html',
@@ -19,32 +19,25 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  const url = event.request.url;
+  
+  // ⭐ IGNORAR completamente requisições de API
+  if (url.includes('/api/') || url.includes('supabase.co')) {
+    console.log('SW: Ignorando requisição de API:', url);
+    return; // Deixa o navegador lidar diretamente
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Cache hit - return response
         if (response) {
           return response;
         }
         
-        // Clone the request because it's a one-time use
-        const fetchRequest = event.request.clone();
-        
-        return fetch(fetchRequest).then(response => {
-          // Check if we received a valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          
-          // Clone the response because it's a one-time use
-          const responseToCache = response.clone();
-          
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-            
-          return response;
+        return fetch(event.request).catch(err => {
+          console.log('Fetch falhou, retornando offline:', err);
+          // Se falhar, tenta retornar a página inicial
+          return caches.match('./index.html');
         });
       })
   );
