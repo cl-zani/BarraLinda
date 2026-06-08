@@ -4,177 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapa de Ocorrências - Barra Linda</title>
-    <!-- CSS do Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, 'Segoe UI', sans-serif;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; }
         .header {
-            background: #2e7d32;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
+            background: #2e7d32; color: white; padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px;
         }
-        .header h1 {
-            font-size: 1.2rem;
-        }
-        .filters {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
+        .header h1 { font-size: 1.2rem; }
+        .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .filters select, .filters button {
-            padding: 5px 10px;
-            border-radius: 8px;
-            border: none;
-            font-size: 0.9rem;
+            padding: 5px 10px; border-radius: 8px; border: none; font-size: 0.9rem;
         }
-        .filters button {
-            background: white;
-            color: #2e7d32;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .categoria-container {
-            position: relative;
-            display: inline-block;
-        }
+        .filters button { background: white; color: #2e7d32; cursor: pointer; font-weight: bold; }
+        .categoria-container { position: relative; display: inline-block; }
         .categoria-multiselect {
-            background: white;
-            color: #2e7d32;
-            min-width: 200px;
-            cursor: pointer;
-            padding: 5px 25px 5px 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            background: white; color: #2e7d32; min-width: 200px; cursor: pointer;
+            padding: 5px 25px 5px 10px; border-radius: 8px; font-size: 0.9rem;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 8px center;
-            background-size: 16px;
-            appearance: none;
+            background-repeat: no-repeat; background-position: right 8px center; background-size: 16px; appearance: none;
         }
         .categoria-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1001;
-            display: none;
-            max-height: 250px;
-            overflow-y: auto;
-            margin-top: 5px;
+            position: absolute; top: 100%; left: 0; right: 0; background: white;
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1001; display: none; max-height: 250px; overflow-y: auto; margin-top: 5px;
         }
-        .categoria-dropdown.show {
-            display: block;
-        }
+        .categoria-dropdown.show { display: block; }
         .categoria-option {
-            padding: 8px 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #333;
-            transition: background 0.2s;
+            padding: 8px 12px; cursor: pointer; display: flex; align-items: center;
+            gap: 8px; color: #333; transition: background 0.2s;
         }
-        .categoria-option:hover {
-            background: #e8f5e9;
-        }
-        .categoria-option input {
-            margin: 0;
-            cursor: pointer;
-        }
-        .categoria-option label {
-            cursor: pointer;
-            flex: 1;
-        }
+        .categoria-option:hover { background: #e8f5e9; }
+        .categoria-option input { margin: 0; cursor: pointer; }
+        .categoria-option label { cursor: pointer; flex: 1; }
         .categoria-selecionadas {
-            background: white;
-            color: #2e7d32;
-            min-width: 200px;
-            font-size: 0.85rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-            align-items: center;
-            padding: 5px 10px;
-            border-radius: 8px;
+            background: white; color: #2e7d32; min-width: 200px; font-size: 0.85rem;
+            display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 5px 10px; border-radius: 8px;
         }
         .categoria-tag-selecionada {
-            background: #e8f5e9;
-            color: #2e7d32;
-            padding: 2px 6px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+            background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 12px;
+            font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;
         }
-        .categoria-tag-selecionada .remover {
-            cursor: pointer;
-            font-weight: bold;
-            margin-left: 4px;
-            color: #666;
-        }
-        .categoria-tag-selecionada .remover:hover {
-            color: #d32f2f;
-        }
-        .placeholder-categoria {
-            color: #999;
-            font-size: 0.85rem;
-        }
-        #map {
-            flex: 1;
-            width: 100%;
-            height: 100%;
-            min-height: 500px;
-        }
+        .categoria-tag-selecionada .remover { cursor: pointer; font-weight: bold; margin-left: 4px; color: #666; }
+        .categoria-tag-selecionada .remover:hover { color: #d32f2f; }
+        .placeholder-categoria { color: #999; font-size: 0.85rem; }
+        #map { flex: 1; width: 100%; min-height: 500px; }
         .stats {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: white;
-            padding: 10px 15px;
-            border-radius: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-            font-size: 12px;
-            font-weight: bold;
-            max-width: 300px;
+            position: absolute; bottom: 20px; right: 20px; background: white;
+            padding: 10px 15px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000; font-size: 12px; font-weight: bold; max-width: 300px; white-space: pre-line;
         }
-        .popup-content {
-            max-width: 250px;
-        }
-        .popup-content img {
-            max-width: 100%;
-            border-radius: 8px;
-            margin-top: 8px;
-        }
-        .tag {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            margin: 2px;
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin: 2px; background: #e8f5e9; color: #2e7d32; }
     </style>
 </head>
 <body>
@@ -187,101 +69,108 @@
                 <option value="em_andamento">Em andamento</option>
                 <option value="resolvido">Resolvido</option>
             </select>
-            
+
             <div class="categoria-container">
                 <div id="categoriaMultiselect" class="categoria-multiselect">
                     <div id="categoriasSelecionadasDisplay" class="categoria-selecionadas">
                         <span class="placeholder-categoria">Selecione categorias...</span>
                     </div>
                 </div>
-                <div id="categoriaDropdown" class="categoria-dropdown">
-                    <!-- Opções serão inseridas via JavaScript -->
-                </div>
+                <div id="categoriaDropdown" class="categoria-dropdown"></div>
             </div>
-            
+
             <button id="refreshBtn">🔄 Atualizar</button>
         </div>
     </div>
+
     <div id="map"></div>
     <div class="stats" id="stats">Carregando ocorrências...</div>
 
-    <!-- JavaScript -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Configuração do backend seguro
-        const API_URL = 'https://meu-backend-fiscal.vercel.app/api/ocorrencias';
-        
+        const API_URL = 'https://meu-backend-barralinda.vercel.app/api/ocorrencias';
+
         let mapa;
         let marcadores = [];
         let todasCategorias = [];
         let categoriasSelecionadas = new Set();
         let todasOcorrencias = [];
-        
-        // Função para inicializar o mapa
+
+        // ── Utilitário: escapar HTML ──────────────────────────────────────────
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#x27;');
+        }
+
+        // ── Mapa ──────────────────────────────────────────────────────────────
         function inicializarMapa() {
-            console.log('Inicializando mapa...');
-            
             mapa = L.map('map').setView([-18.573, -39.732], 13);
-            
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
             }).addTo(mapa);
-            
-            console.log('Mapa inicializado!');
-            document.getElementById('stats').innerHTML = '🔄 Carregando ocorrências...';
+            document.getElementById('stats').textContent = '🔄 Carregando ocorrências...';
         }
-        
-        // Função para atualizar o display das categorias selecionadas
+
+        // ── Filtros de categoria ──────────────────────────────────────────────
         function atualizarDisplayCategorias() {
             const display = document.getElementById('categoriasSelecionadasDisplay');
             display.innerHTML = '';
-            
+
             if (categoriasSelecionadas.size === 0) {
-                display.innerHTML = '<span class="placeholder-categoria">Selecione categorias...</span>';
+                const span = document.createElement('span');
+                span.className = 'placeholder-categoria';
+                span.textContent = 'Selecione categorias...';
+                display.appendChild(span);
             } else {
                 categoriasSelecionadas.forEach(categoria => {
                     const tag = document.createElement('div');
                     tag.className = 'categoria-tag-selecionada';
-                    tag.innerHTML = `
-                        ${categoria}
-                        <span class="remover" data-categoria="${categoria}">✕</span>
-                    `;
-                    display.appendChild(tag);
-                });
-                
-                document.querySelectorAll('.remover').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+
+                    const texto = document.createTextNode(categoria + ' ');
+                    const btnRemover = document.createElement('span');
+                    btnRemover.className = 'remover';
+                    btnRemover.textContent = '✕';
+                    btnRemover.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        const categoria = btn.getAttribute('data-categoria');
                         categoriasSelecionadas.delete(categoria);
                         atualizarDisplayCategorias();
                         atualizarCheckboxesDropdown();
                         aplicarFiltros();
                     });
+
+                    tag.appendChild(texto);
+                    tag.appendChild(btnRemover);
+                    display.appendChild(tag);
                 });
             }
         }
-        
-        // Função para atualizar os checkboxes no dropdown
+
         function atualizarCheckboxesDropdown() {
             const dropdown = document.getElementById('categoriaDropdown');
             dropdown.innerHTML = '';
-            
+
             if (todasCategorias.length === 0) {
-                dropdown.innerHTML = '<div style="padding: 8px; color: #999;">Nenhuma categoria disponível</div>';
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 8px; color: #999;';
+                div.textContent = 'Nenhuma categoria disponível';
+                dropdown.appendChild(div);
                 return;
             }
-            
+
             todasCategorias.forEach(categoria => {
                 const optionDiv = document.createElement('div');
                 optionDiv.className = 'categoria-option';
-                
+
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = categoria;
-                checkbox.id = `cat_${categoria.replace(/\s/g, '_')}`;
+                checkbox.id = `cat_${categoria.replace(/\W/g, '_')}`;
                 checkbox.checked = categoriasSelecionadas.has(categoria);
-                
+
                 checkbox.addEventListener('change', (e) => {
                     e.stopPropagation();
                     if (checkbox.checked) {
@@ -292,195 +181,155 @@
                     atualizarDisplayCategorias();
                     aplicarFiltros();
                 });
-                
+
                 const label = document.createElement('label');
                 label.htmlFor = checkbox.id;
-                label.textContent = categoria;
-                
+                label.textContent = categoria; // textContent, não innerHTML
+
                 optionDiv.appendChild(checkbox);
                 optionDiv.appendChild(label);
                 dropdown.appendChild(optionDiv);
             });
         }
-        
-        // Função para alternar o dropdown
+
         function toggleDropdown() {
-            const dropdown = document.getElementById('categoriaDropdown');
-            dropdown.classList.toggle('show');
+            document.getElementById('categoriaDropdown').classList.toggle('show');
         }
-        
-        // Função para fechar dropdown ao clicar fora
-        function fecharDropdownClickFora(event) {
+
+        document.addEventListener('click', (event) => {
             const container = document.querySelector('.categoria-container');
             if (container && !container.contains(event.target)) {
                 document.getElementById('categoriaDropdown').classList.remove('show');
             }
-        }
-        
-        // Função para verificar se uma ocorrência passa no filtro de categorias
+        });
+
+        // ── Filtros e marcadores ──────────────────────────────────────────────
         function filtrarPorCategorias(ocorrencia) {
             if (categoriasSelecionadas.size === 0) return true;
             if (!ocorrencia.tags || !Array.isArray(ocorrencia.tags)) return false;
             return ocorrencia.tags.some(tag => categoriasSelecionadas.has(tag));
         }
-        
-        // Função para extrair categorias das ocorrências
+
         function extrairCategorias(ocorrencias) {
-            const categoriasSet = new Set();
-            ocorrencias.forEach(ocorrencia => {
-                if (ocorrencia.tags && Array.isArray(ocorrencia.tags)) {
-                    ocorrencia.tags.forEach(tag => {
-                        if (tag && tag.trim()) {
-                            categoriasSet.add(tag.trim());
-                        }
-                    });
+            const set = new Set();
+            ocorrencias.forEach(oc => {
+                if (oc.tags && Array.isArray(oc.tags)) {
+                    oc.tags.forEach(tag => { if (tag?.trim()) set.add(tag.trim()); });
                 }
             });
-            return Array.from(categoriasSet).sort();
+            return Array.from(set).sort();
         }
-        
-        // Função para aplicar os filtros e atualizar o mapa
+
         function aplicarFiltros() {
             if (!todasOcorrencias.length) return;
-            
+
             const status = document.getElementById('statusFilter').value;
-            
-            let ocorrenciasFiltradas = todasOcorrencias;
-            
-            // Filtrar por status
+            let filtradas = todasOcorrencias;
+
             if (status !== 'todos') {
-                ocorrenciasFiltradas = ocorrenciasFiltradas.filter(oc => oc.status === status);
+                filtradas = filtradas.filter(oc => oc.status === status);
             }
-            
-            // Filtrar por categorias
             if (categoriasSelecionadas.size > 0) {
-                ocorrenciasFiltradas = ocorrenciasFiltradas.filter(oc => filtrarPorCategorias(oc));
+                filtradas = filtradas.filter(oc => filtrarPorCategorias(oc));
             }
-            
-            console.log('Ocorrências após filtros:', ocorrenciasFiltradas.length);
-            
-            // Atualizar estatísticas
-            let statsText = `📌 ${ocorrenciasFiltradas.length} ocorrências exibidas`;
+
+            let statsText = `📌 ${filtradas.length} ocorrências exibidas`;
             if (categoriasSelecionadas.size > 0) {
                 statsText += `\n🏷️ Filtro: ${Array.from(categoriasSelecionadas).join(', ')}`;
             }
-            if (todasOcorrencias.length !== ocorrenciasFiltradas.length) {
-                statsText += `\n📊 Total no sistema: ${todasOcorrencias.length}`;
+            if (todasOcorrencias.length !== filtradas.length) {
+                statsText += `\n📊 Total: ${todasOcorrencias.length}`;
             }
-            document.getElementById('stats').innerHTML = statsText;
-            
-            // Remover marcadores antigos
-            marcadores.forEach(marker => mapa.removeLayer(marker));
+            document.getElementById('stats').textContent = statsText;
+
+            marcadores.forEach(m => mapa.removeLayer(m));
             marcadores = [];
-            
-            // Adicionar novos marcadores
-            ocorrenciasFiltradas.forEach(ocorrencia => {
-                if (ocorrencia.latitude && ocorrencia.longitude) {
-                    let conteudo = `
-                        <div class="popup-content">
-                            <strong>📅 ${new Date(ocorrencia.data_criacao).toLocaleString('pt-BR')}</strong>
-                            <p>${ocorrencia.texto.substring(0, 150)}</p>
-                    `;
-                    
-                    if (ocorrencia.tags && ocorrencia.tags.length > 0) {
-                        conteudo += `<div>`;
-                        ocorrencia.tags.forEach(tag => {
-                            conteudo += `<span class="tag">${tag}</span>`;
-                        });
-                        conteudo += `</div>`;
-                    }
-                    
-                    if (ocorrencia.foto) {
-                        conteudo += `<img src="${ocorrencia.foto}" alt="Foto" style="max-width:100%; border-radius:8px; margin-top:8px;">`;
-                    }
-                    
-                    conteudo += `<br><small>🏷️ Status: ${ocorrencia.status}</small></div>`;
-                    
-                    const marcador = L.marker([ocorrencia.latitude, ocorrencia.longitude])
-                        .bindPopup(conteudo)
-                        .addTo(mapa);
-                    
-                    marcadores.push(marcador);
+
+            filtradas.forEach(oc => {
+                if (!oc.latitude || !oc.longitude) return;
+
+                // ── Popup construído com DOM API (sem innerHTML com dados do usuário) ──
+                const popup = document.createElement('div');
+                popup.style.maxWidth = '250px';
+
+                const data = document.createElement('strong');
+                data.textContent = '📅 ' + new Date(oc.data_criacao).toLocaleString('pt-BR');
+                popup.appendChild(data);
+
+                const texto = document.createElement('p');
+                texto.style.marginTop = '6px';
+                texto.textContent = String(oc.texto).substring(0, 150);
+                popup.appendChild(texto);
+
+                if (oc.tags?.length > 0) {
+                    const tagsDiv = document.createElement('div');
+                    tagsDiv.style.marginTop = '6px';
+                    oc.tags.forEach(tag => {
+                        const span = document.createElement('span');
+                        span.className = 'tag';
+                        span.textContent = tag;
+                        tagsDiv.appendChild(span);
+                    });
+                    popup.appendChild(tagsDiv);
                 }
+
+                // Foto: apenas URLs do Supabase (domínio confiável)
+                if (oc.foto && oc.foto.startsWith('https://') && oc.foto.includes('supabase')) {
+                    const img = document.createElement('img');
+                    img.src = oc.foto;
+                    img.alt = 'Foto da ocorrência';
+                    img.style.cssText = 'max-width:100%; border-radius:8px; margin-top:8px;';
+                    popup.appendChild(img);
+                }
+
+                const statusEl = document.createElement('small');
+                statusEl.style.marginTop = '6px';
+                statusEl.style.display = 'block';
+                statusEl.textContent = '🏷️ Status: ' + oc.status;
+                popup.appendChild(statusEl);
+
+                const marcador = L.marker([oc.latitude, oc.longitude])
+                    .bindPopup(popup)
+                    .addTo(mapa);
+
+                marcadores.push(marcador);
             });
-            
+
             if (marcadores.length > 0) {
                 const bounds = L.latLngBounds(marcadores.map(m => m.getLatLng()));
                 mapa.fitBounds(bounds, { padding: [50, 50] });
             }
         }
-        
-        // Função para carregar ocorrências
-async function carregarOcorrencias() {
-    console.log('Carregando ocorrências da API...');
-    document.getElementById('stats').innerHTML = '🔄 Carregando ocorrências...';
-    
-    try {
-        // URL correta do seu backend (já está funcionando)
-        const API_URL = 'https://meu-backend-fiscal.vercel.app/api/ocorrencias';
-        
-        // Faz a requisição com modo cors explícito
-        const resposta = await fetch(API_URL, {
-            method: 'GET',
-            mode: 'cors',  // Importante para CORS
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+
+        // ── Carregar dados ────────────────────────────────────────────────────
+        async function carregarOcorrencias() {
+            document.getElementById('stats').textContent = '🔄 Carregando...';
+            try {
+                const resposta = await fetch(API_URL);
+                if (!resposta.ok) throw new Error('Erro ao buscar dados');
+
+                todasOcorrencias = await resposta.json();
+
+                todasCategorias = extrairCategorias(todasOcorrencias);
+                atualizarCheckboxesDropdown();
+                aplicarFiltros();
+
+            } catch (erro) {
+                console.error('Erro ao carregar:', erro);
+                document.getElementById('stats').textContent = '❌ Erro ao carregar dados';
             }
-        });
-        
-        if (!resposta.ok) {
-            throw new Error(`HTTP ${resposta.status}: ${resposta.statusText}`);
         }
-        
-        const dados = await resposta.json();
-        console.log('Dados recebidos:', dados);
-        
-        if (dados && dados.length > 0) {
-            todasOcorrencias = dados;
-            todasCategorias = extrairCategorias(todasOcorrencias);
-            atualizarCheckboxesDropdown();
-            aplicarFiltros();
-            document.getElementById('stats').innerHTML = `✅ ${todasOcorrencias.length} ocorrências carregadas`;
-        } else {
-            document.getElementById('stats').innerHTML = '📭 Nenhuma ocorrência encontrada';
-            todasOcorrencias = [];
-        }
-        
-    } catch (erro) {
-        console.error('Erro detalhado:', erro);
-        document.getElementById('stats').innerHTML = `❌ Erro: ${erro.message}`;
-        
-        // Mostra mais detalhes se for erro de CORS
-        if (erro.message.includes('fetch')) {
-            document.getElementById('stats').innerHTML += ' - Verifique se o servidor está online';
-        }
-    }
-}
-        
-        // Aguardar o DOM carregar
+
+        // ── Inicializar ───────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM carregado, iniciando...');
             inicializarMapa();
-            
-            // Configurar eventos do dropdown
-            const multiselect = document.getElementById('categoriaMultiselect');
-            if (multiselect) {
-                multiselect.addEventListener('click', toggleDropdown);
-            }
-            document.addEventListener('click', fecharDropdownClickFora);
-            
-            // Carregar ocorrências
-            setTimeout(() => {
-                carregarOcorrencias();
-            }, 500);
+
+            document.getElementById('categoriaMultiselect').addEventListener('click', toggleDropdown);
+            document.getElementById('refreshBtn').addEventListener('click', carregarOcorrencias);
+            document.getElementById('statusFilter').addEventListener('change', aplicarFiltros);
+
+            setTimeout(carregarOcorrencias, 500);
         });
-        
-        // Botão de atualizar
-        document.getElementById('refreshBtn').addEventListener('click', carregarOcorrencias);
-        document.getElementById('statusFilter').addEventListener('change', aplicarFiltros);
-        
-        console.log('Script do mapa carregado com suporte a múltiplas categorias!');
     </script>
 </body>
 </html>

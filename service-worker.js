@@ -1,4 +1,4 @@
-const CACHE_NAME = 'barralinda';
+const CACHE_NAME = 'barralinda-v2';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,13 +6,9 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  console.log('Service Worker: Instalando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Service Worker: Cache aberto');
-        return cache.addAll(urlsToCache);
-      })
+      .then(cache => cache.addAll(urlsToCache))
       .catch(err => console.log('Erro no cache:', err))
   );
   self.skipWaiting();
@@ -20,43 +16,31 @@ self.addEventListener('install', event => {
 
 self.addEventListener('fetch', event => {
   const url = event.request.url;
-  
-  // ⭐ IGNORAR completamente requisições de API
+
+  // Ignorar requisições de API e supabase — sempre buscar da rede
   if (url.includes('/api/') || url.includes('supabase.co')) {
-    console.log('SW: Ignorando requisição de API:', url);
-    return; // Deixa o navegador lidar diretamente
+    return;
   }
-  
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        if (response) {
-          return response;
-        }
-        
-        return fetch(event.request).catch(err => {
-          console.log('Fetch falhou, retornando offline:', err);
-          // Se falhar, tenta retornar a página inicial
-          return caches.match('./index.html');
-        });
+        if (response) return response;
+        return fetch(event.request).catch(() => caches.match('./index.html'));
       })
   );
 });
 
 self.addEventListener('activate', event => {
-  console.log('Service Worker: Ativando...');
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('Service Worker: Removendo cache antigo', cacheName);
-            return caches.delete(cacheName);
-          }
+    caches.keys().then(cacheNames =>
+      Promise.all(
+        cacheNames.map(name => {
+          if (!cacheWhitelist.includes(name)) return caches.delete(name);
         })
-      );
-    })
+      )
+    )
   );
   event.waitUntil(clients.claim());
 });
