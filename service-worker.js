@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fiscal-cidadao-v4';
+const CACHE_NAME = 'barralinda';
 const urlsToCache = [
   './',
   './index.html',
