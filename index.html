@@ -17,10 +17,10 @@
         .tag-btn { padding: 10px 18px; border: 2px solid #2e7d32; border-radius: 25px; background: white; color: #2e7d32; cursor: pointer; }
         .tag-btn.selected { background: #2e7d32; color: white; }
         .camera-btn { width: 100%; padding: 15px; background: #2196f3; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; }
-        .photo-preview img { max-width: 100%; border-radius: 12px; margin-top: 10px; }
+        .photo-preview img { max-width: 100%; border-radius: 12px; margin-top: 10px; border: 2px solid #eee; }
         .location-box { background: #e3f2fd; padding: 15px; border-radius: 12px; margin: 15px 0; font-size: 14px; }
         .submit-btn { width: 100%; padding: 16px; background: #2e7d32; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; }
-        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; color: white; }
+        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; }
     </style>
 </head>
 <body>
@@ -39,9 +39,10 @@
         <div class="form-group">
             <label>🏷️ Categoria</label>
             <div class="tag-buttons" id="tagButtons">
-                <button type="button" class="tag-btn" data-tag="elogio"> 👍 Elogio</button>
-                <button type="button" class="tag-btn" data-tag="reclamacao"> 👎 Reclamação</button>
-                <button type="button" class="tag-btn" data-tag="sugestao"> 💡 Sugestão</button>
+                <button type="button" class="tag-btn" data-tag="Lixo">🗑️ Lixo</button>
+                <button type="button" class="tag-btn" data-tag="Rua">🛣️ Rua</button>
+                <button type="button" class="tag-btn" data-tag="Iluminacao">💡 Luz</button>
+                <button type="button" class="tag-btn" data-tag="Outro">📌 Outro</button>
             </div>
         </div>
 
@@ -51,6 +52,7 @@
             <input type="file" id="fileInput" accept="image/*" capture="environment" style="display: none;">
             <div class="photo-preview" id="photoPreview" style="display: none;">
                 <img id="previewImg" src="">
+                <p id="fotoInfo" style="font-size: 10px; color: #666; text-align: center; margin-top: 5px;"></p>
             </div>
         </div>
 
@@ -61,13 +63,16 @@
         <button class="submit-btn" id="submitBtn">🚀 Enviar Relato</button>
     </div>
 
-    <div id="loading" class="loading">⏳ Enviando para a Escola</div>
+    <div id="loading" class="loading">
+        <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
+        <div>Processando e Enviando...</div>
+    </div>
 
     <script>
-        // 1. COLOQUE O SEU LINK DO CLOUDFLARE AQUI:
+        // 1. ATUALIZE O LINK DO CLOUDFLARE AQUI:
         const API_URL = 'https://governing-earned-relating-way.trycloudflare.com';
 
-        let fotoArquivo = null;
+        let fotoProcessadaBlob = null;
         let localizacao = null;
         let tagSelecionada = "";
 
@@ -83,26 +88,75 @@
         // Lógica do GPS
         navigator.geolocation.getCurrentPosition(pos => {
             localizacao = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            document.getElementById('locationText').innerText = "Localização capturada!";
+            document.getElementById('locationText').innerText = "📍 Localização capturada!";
         }, err => {
-            document.getElementById('locationText').innerText = "Erro no GPS: " + err.message;
+            document.getElementById('locationText').innerText = "❌ GPS necessário! Ative nas configurações.";
+            console.error(err);
         });
 
-        // Lógica da Foto
-        document.getElementById('fileInput').onchange = e => {
-            fotoArquivo = e.target.files[0];
-            if (fotoArquivo) {
-                document.getElementById('previewImg').src = URL.createObjectURL(fotoArquivo);
-                document.getElementById('photoPreview').style.display = 'block';
-            }
+        // --- FUNÇÃO DE COMPRESSÃO DE IMAGEM ---
+        async function comprimirImagem(arquivo) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(arquivo);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        const MAX_DIMENSION = 1280; // Resolução excelente e leve
+
+                        if (width > height) {
+                            if (width > MAX_DIMENSION) {
+                                height *= MAX_DIMENSION / width;
+                                width = MAX_DIMENSION;
+                            }
+                        } else {
+                            if (height > MAX_DIMENSION) {
+                                width *= MAX_DIMENSION / height;
+                                height = MAX_DIMENSION;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        canvas.toBlob((blob) => {
+                            resolve(blob);
+                        }, 'image/jpeg', 0.7); // 70% de qualidade JPEG
+                    };
+                };
+            });
+        }
+
+        // Lógica da Seleção da Foto
+        document.getElementById('fileInput').onchange = async (e) => {
+            const arquivoOriginal = e.target.files[0];
+            if (!arquivoOriginal) return;
+
+            document.getElementById('loading').style.display = 'flex';
+            
+            // Comprime a foto aqui mesmo no celular
+            fotoProcessadaBlob = await comprimirImagem(arquivoOriginal);
+            
+            const urlPreview = URL.createObjectURL(fotoProcessadaBlob);
+            document.getElementById('previewImg').src = urlPreview;
+            document.getElementById('photoPreview').style.display = 'block';
+            document.getElementById('fotoInfo').innerText = `Foto otimizada: ${(fotoProcessadaBlob.size / 1024).toFixed(0)} KB`;
+            
+            document.getElementById('loading').style.display = 'none';
         };
 
-        // ENVIAR PARA O COMPUTADOR LOCAL (PocketBase)
+        // ENVIAR RELATO
         document.getElementById('submitBtn').onclick = async () => {
             const texto = document.getElementById('relato').value;
             
-            if (!texto || !fotoArquivo || !localizacao) {
-                alert("Por favor, preencha o relato, tire uma foto e autorize o GPS!");
+            if (!texto || !fotoProcessadaBlob || !localizacao) {
+                alert("Por favor: escreva o relato, tire uma foto e autorize o GPS!");
                 return;
             }
 
@@ -114,7 +168,7 @@
             formData.append('longitude', localizacao.lng);
             formData.append('tags', tagSelecionada);
             formData.append('status', 'pendente');
-            formData.append('foto', fotoArquivo);
+            formData.append('foto', fotoProcessadaBlob, 'ocorrencia.jpg');
 
             try {
                 const res = await fetch(`${API_URL}/api/collections/ocorrencias/records`, {
@@ -123,13 +177,14 @@
                 });
 
                 if (res.ok) {
-                    alert("✅ Relato enviado com sucesso! Obrigado por ajudar a cidade.");
+                    alert("✅ Relato enviado com sucesso! Obrigado!");
                     location.reload();
                 } else {
-                    alert("❌ Erro ao enviar. Verifique se o computador da escola está ligado.");
+                    const erro = await res.json();
+                    alert("❌ Erro do Servidor: " + JSON.stringify(erro.data));
                 }
             } catch (err) {
-                alert("❌ Erro de conexão com o servidor local.");
+                alert("❌ Erro de conexão. O computador da escola está ligado e o link do Cloudflare está certo no GitHub?");
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
