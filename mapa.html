@@ -3,333 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa de Ocorrências - Barra Linda</title>
+    <title>Mapa Barra Linda</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; }
-        .header {
-            background: #2e7d32; color: white; padding: 15px 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 10px;
-        }
-        .header h1 { font-size: 1.2rem; }
-        .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-        .filters select, .filters button {
-            padding: 5px 10px; border-radius: 8px; border: none; font-size: 0.9rem;
-        }
-        .filters button { background: white; color: #2e7d32; cursor: pointer; font-weight: bold; }
-        .categoria-container { position: relative; display: inline-block; }
-        .categoria-multiselect {
-            background: white; color: #2e7d32; min-width: 200px; cursor: pointer;
-            padding: 5px 25px 5px 10px; border-radius: 8px; font-size: 0.9rem;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat; background-position: right 8px center; background-size: 16px; appearance: none;
-        }
-        .categoria-dropdown {
-            position: absolute; top: 100%; left: 0; right: 0; background: white;
-            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1001; display: none; max-height: 250px; overflow-y: auto; margin-top: 5px;
-        }
-        .categoria-dropdown.show { display: block; }
-        .categoria-option {
-            padding: 8px 12px; cursor: pointer; display: flex; align-items: center;
-            gap: 8px; color: #333; transition: background 0.2s;
-        }
-        .categoria-option:hover { background: #e8f5e9; }
-        .categoria-option input { margin: 0; cursor: pointer; }
-        .categoria-option label { cursor: pointer; flex: 1; }
-        .categoria-selecionadas {
-            background: white; color: #2e7d32; min-width: 200px; font-size: 0.85rem;
-            display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 5px 10px; border-radius: 8px;
-        }
-        .categoria-tag-selecionada {
-            background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 12px;
-            font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;
-        }
-        .categoria-tag-selecionada .remover { cursor: pointer; font-weight: bold; margin-left: 4px; color: #666; }
-        .categoria-tag-selecionada .remover:hover { color: #d32f2f; }
-        .placeholder-categoria { color: #999; font-size: 0.85rem; }
-        #map { flex: 1; width: 100%; min-height: 500px; }
-        .stats {
-            position: absolute; bottom: 20px; right: 20px; background: white;
-            padding: 10px 15px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1000; font-size: 12px; font-weight: bold; max-width: 300px; white-space: pre-line;
-        }
-        .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin: 2px; background: #e8f5e9; color: #2e7d32; }
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100%; }
+        .header-map { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🗺️ Mapa de Ocorrências - Barra Linda</h1>
-        <div class="filters">
-            <select id="statusFilter">
-                <option value="todos">Todos os status</option>
-                <option value="pendente">Pendente</option>
-                <option value="em_andamento">Em andamento</option>
-                <option value="resolvido">Resolvido</option>
-            </select>
-
-            <div class="categoria-container">
-                <div id="categoriaMultiselect" class="categoria-multiselect">
-                    <div id="categoriasSelecionadasDisplay" class="categoria-selecionadas">
-                        <span class="placeholder-categoria">Selecione categorias...</span>
-                    </div>
-                </div>
-                <div id="categoriaDropdown" class="categoria-dropdown"></div>
-            </div>
-
-            <button id="refreshBtn">🔄 Atualizar</button>
-        </div>
-    </div>
-
+    <div class="header-map">🗺️ Mapa de Ocorrências</div>
     <div id="map"></div>
-    <div class="stats" id="stats">Carregando ocorrências...</div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const API_URL = 'https://meu-backend-fiscal.vercel.app/api/ocorrencias';
+        // 1. COLOQUE O SEU LINK DO CLOUDFLARE AQUI TAMBÉM:
+        const API_URL = 'https://COLE-SEU-LINK-AQUI.trycloudflare.com';
 
-        let mapa;
-        let marcadores = [];
-        let todasCategorias = [];
-        let categoriasSelecionadas = new Set();
-        let todasOcorrencias = [];
+        const map = L.map('map').setView([-18.573, -39.732], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // ── Utilitário: escapar HTML ──────────────────────────────────────────
-        function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#x27;');
-        }
-
-        // ── Mapa ──────────────────────────────────────────────────────────────
-        function inicializarMapa() {
-            mapa = L.map('map').setView([-18.573, -39.732], 13);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-            }).addTo(mapa);
-            document.getElementById('stats').textContent = '🔄 Carregando ocorrências...';
-        }
-
-        // ── Filtros de categoria ──────────────────────────────────────────────
-        function atualizarDisplayCategorias() {
-            const display = document.getElementById('categoriasSelecionadasDisplay');
-            display.innerHTML = '';
-
-            if (categoriasSelecionadas.size === 0) {
-                const span = document.createElement('span');
-                span.className = 'placeholder-categoria';
-                span.textContent = 'Selecione categorias...';
-                display.appendChild(span);
-            } else {
-                categoriasSelecionadas.forEach(categoria => {
-                    const tag = document.createElement('div');
-                    tag.className = 'categoria-tag-selecionada';
-
-                    const texto = document.createTextNode(categoria + ' ');
-                    const btnRemover = document.createElement('span');
-                    btnRemover.className = 'remover';
-                    btnRemover.textContent = '✕';
-                    btnRemover.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        categoriasSelecionadas.delete(categoria);
-                        atualizarDisplayCategorias();
-                        atualizarCheckboxesDropdown();
-                        aplicarFiltros();
-                    });
-
-                    tag.appendChild(texto);
-                    tag.appendChild(btnRemover);
-                    display.appendChild(tag);
-                });
-            }
-        }
-
-        function atualizarCheckboxesDropdown() {
-            const dropdown = document.getElementById('categoriaDropdown');
-            dropdown.innerHTML = '';
-
-            if (todasCategorias.length === 0) {
-                const div = document.createElement('div');
-                div.style.cssText = 'padding: 8px; color: #999;';
-                div.textContent = 'Nenhuma categoria disponível';
-                dropdown.appendChild(div);
-                return;
-            }
-
-            todasCategorias.forEach(categoria => {
-                const optionDiv = document.createElement('div');
-                optionDiv.className = 'categoria-option';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = categoria;
-                checkbox.id = `cat_${categoria.replace(/\W/g, '_')}`;
-                checkbox.checked = categoriasSelecionadas.has(categoria);
-
-                checkbox.addEventListener('change', (e) => {
-                    e.stopPropagation();
-                    if (checkbox.checked) {
-                        categoriasSelecionadas.add(categoria);
-                    } else {
-                        categoriasSelecionadas.delete(categoria);
-                    }
-                    atualizarDisplayCategorias();
-                    aplicarFiltros();
-                });
-
-                const label = document.createElement('label');
-                label.htmlFor = checkbox.id;
-                label.textContent = categoria; // textContent, não innerHTML
-
-                optionDiv.appendChild(checkbox);
-                optionDiv.appendChild(label);
-                dropdown.appendChild(optionDiv);
-            });
-        }
-
-        function toggleDropdown() {
-            document.getElementById('categoriaDropdown').classList.toggle('show');
-        }
-
-        document.addEventListener('click', (event) => {
-            const container = document.querySelector('.categoria-container');
-            if (container && !container.contains(event.target)) {
-                document.getElementById('categoriaDropdown').classList.remove('show');
-            }
-        });
-
-        // ── Filtros e marcadores ──────────────────────────────────────────────
-        function filtrarPorCategorias(ocorrencia) {
-            if (categoriasSelecionadas.size === 0) return true;
-            if (!ocorrencia.tags || !Array.isArray(ocorrencia.tags)) return false;
-            return ocorrencia.tags.some(tag => categoriasSelecionadas.has(tag));
-        }
-
-        function extrairCategorias(ocorrencias) {
-            const set = new Set();
-            ocorrencias.forEach(oc => {
-                if (oc.tags && Array.isArray(oc.tags)) {
-                    oc.tags.forEach(tag => { if (tag?.trim()) set.add(tag.trim()); });
-                }
-            });
-            return Array.from(set).sort();
-        }
-
-        function aplicarFiltros() {
-            if (!todasOcorrencias.length) return;
-
-            const status = document.getElementById('statusFilter').value;
-            let filtradas = todasOcorrencias;
-
-            if (status !== 'todos') {
-                filtradas = filtradas.filter(oc => oc.status === status);
-            }
-            if (categoriasSelecionadas.size > 0) {
-                filtradas = filtradas.filter(oc => filtrarPorCategorias(oc));
-            }
-
-            let statsText = `📌 ${filtradas.length} ocorrências exibidas`;
-            if (categoriasSelecionadas.size > 0) {
-                statsText += `\n🏷️ Filtro: ${Array.from(categoriasSelecionadas).join(', ')}`;
-            }
-            if (todasOcorrencias.length !== filtradas.length) {
-                statsText += `\n📊 Total: ${todasOcorrencias.length}`;
-            }
-            document.getElementById('stats').textContent = statsText;
-
-            marcadores.forEach(m => mapa.removeLayer(m));
-            marcadores = [];
-
-            filtradas.forEach(oc => {
-                if (!oc.latitude || !oc.longitude) return;
-
-                // ── Popup construído com DOM API (sem innerHTML com dados do usuário) ──
-                const popup = document.createElement('div');
-                popup.style.maxWidth = '250px';
-
-                const data = document.createElement('strong');
-                data.textContent = '📅 ' + new Date(oc.data_criacao).toLocaleString('pt-BR');
-                popup.appendChild(data);
-
-                const texto = document.createElement('p');
-                texto.style.marginTop = '6px';
-                texto.textContent = String(oc.texto).substring(0, 150);
-                popup.appendChild(texto);
-
-                if (oc.tags?.length > 0) {
-                    const tagsDiv = document.createElement('div');
-                    tagsDiv.style.marginTop = '6px';
-                    oc.tags.forEach(tag => {
-                        const span = document.createElement('span');
-                        span.className = 'tag';
-                        span.textContent = tag;
-                        tagsDiv.appendChild(span);
-                    });
-                    popup.appendChild(tagsDiv);
-                }
-
-                // Foto: apenas URLs do Supabase (domínio confiável)
-                if (oc.foto && oc.foto.startsWith('https://') && oc.foto.includes('supabase')) {
-                    const img = document.createElement('img');
-                    img.src = oc.foto;
-                    img.alt = 'Foto da ocorrência';
-                    img.style.cssText = 'max-width:100%; border-radius:8px; margin-top:8px;';
-                    popup.appendChild(img);
-                }
-
-                const statusEl = document.createElement('small');
-                statusEl.style.marginTop = '6px';
-                statusEl.style.display = 'block';
-                statusEl.textContent = '🏷️ Status: ' + oc.status;
-                popup.appendChild(statusEl);
-
-                const marcador = L.marker([oc.latitude, oc.longitude])
-                    .bindPopup(popup)
-                    .addTo(mapa);
-
-                marcadores.push(marcador);
-            });
-
-            if (marcadores.length > 0) {
-                const bounds = L.latLngBounds(marcadores.map(m => m.getLatLng()));
-                mapa.fitBounds(bounds, { padding: [50, 50] });
-            }
-        }
-
-        // ── Carregar dados ────────────────────────────────────────────────────
-        async function carregarOcorrencias() {
-            document.getElementById('stats').textContent = '🔄 Carregando...';
+        async function carregarMarcadores() {
             try {
-                const resposta = await fetch(API_URL);
-                if (!resposta.ok) throw new Error('Erro ao buscar dados');
+                const res = await fetch(`${API_URL}/api/collections/ocorrencias/records`);
+                const dados = await res.json();
 
-                todasOcorrencias = await resposta.json();
-
-                todasCategorias = extrairCategorias(todasOcorrencias);
-                atualizarCheckboxesDropdown();
-                aplicarFiltros();
-
-            } catch (erro) {
-                console.error('Erro ao carregar:', erro);
-                document.getElementById('stats').textContent = '❌ Erro ao carregar dados';
+                dados.items.forEach(oc => {
+                    const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
+                    
+                    L.marker([oc.latitude, oc.longitude])
+                        .addTo(map)
+                        .bindPopup(`
+                            <div style="width: 200px">
+                                <strong>${oc.tags || 'Relato'}</strong><br>
+                                <p>${oc.texto}</p>
+                                <img src="${fotoUrl}" style="width: 100%; border-radius: 5px">
+                                <br><small>Status: ${oc.status}</small>
+                            </div>
+                        `);
+                });
+            } catch (err) {
+                console.error("Erro ao carregar mapa", err);
             }
         }
 
-        // ── Inicializar ───────────────────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', () => {
-            inicializarMapa();
-
-            document.getElementById('categoriaMultiselect').addEventListener('click', toggleDropdown);
-            document.getElementById('refreshBtn').addEventListener('click', carregarOcorrencias);
-            document.getElementById('statusFilter').addEventListener('change', aplicarFiltros);
-
-            setTimeout(carregarOcorrencias, 500);
-        });
+        carregarMarcadores();
     </script>
 </body>
 </html>
