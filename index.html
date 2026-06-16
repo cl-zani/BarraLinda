@@ -46,7 +46,7 @@
         </div>
         
         <div class="form-group">
-            <label>📸 Foto *</label>
+            <label>📸 Foto </label>
             <button class="camera-btn" onclick="document.getElementById('fileInput').click()">📷 Tirar Foto</button>
             <input type="file" id="fileInput" accept="image/*" capture="environment" style="display: none;">
             <div class="photo-preview" id="photoPreview" style="display: none;">
@@ -87,7 +87,7 @@
         // Lógica do GPS
         navigator.geolocation.getCurrentPosition(pos => {
             localizacao = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            document.getElementById('locationText').innerText = "📍 Localização, para o mapa de ocorrências.";
+            document.getElementById('locationText').innerText = "📍 Localização. Usada no mapa de ocorrências.";
         }, err => {
             document.getElementById('locationText').innerText = "❌ GPS necessário! Ative nas configurações.";
             console.error(err);
