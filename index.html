@@ -87,7 +87,7 @@
         // Lógica do GPS
         navigator.geolocation.getCurrentPosition(pos => {
             localizacao = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            document.getElementById('locationText').innerText = "📍 Localização obtida para ser mostrada no mapa da cidade";
+            document.getElementById('locationText').innerText = "📍 Localização obtida para o mapa de ocorrências";
         }, err => {
             document.getElementById('locationText').innerText = "❌ GPS necessário! Ative nas configurações.";
             console.error(err);
