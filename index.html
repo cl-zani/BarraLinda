@@ -12,83 +12,72 @@
         .header h1 { color: #2e7d32; font-size: 28px; }
         .form-group { margin-bottom: 25px; }
         label { display: block; font-weight: 600; margin-bottom: 10px; color: #333; }
-        textarea { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 12px; font-size: 16px; min-height: 100px; }
+        textarea { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 12px; font-size: 16px; min-height: 100px; font-family: inherit; }
         .tag-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
-        .tag-btn { padding: 10px 18px; border: 2px solid #2e7d32; border-radius: 25px; background: white; color: #2e7d32; cursor: pointer; transition: 0.3s; }
+        .tag-btn { padding: 10px 18px; border: 2px solid #2e7d32; border-radius: 25px; background: white; color: #2e7d32; cursor: pointer; transition: 0.3s; font-weight: 600; }
         .tag-btn.selected { background: #2e7d32; color: white; }
         .camera-btn { width: 100%; padding: 15px; background: #2196f3; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; }
-        .camera-btn:active { background: #1976d2; }
         .photo-preview img { max-width: 100%; border-radius: 12px; margin-top: 10px; border: 2px solid #eee; }
         .location-box { background: #e3f2fd; padding: 15px; border-radius: 12px; margin: 15px 0; font-size: 14px; border-left: 5px solid #2196f3; }
-        .submit-btn { width: 100%; padding: 16px; background: #2e7d32; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .submit-btn:disabled { background: #ccc; }
-        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; text-align: center; padding: 20px; }
-        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #2e7d32; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .submit-btn { width: 100%; padding: 16px; background: #2e7d32; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; text-align: center; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <h1>🏛️ Barra Linda</h1>
+            <h1>🏖️ Barra Linda</h1>
             <p>Quem Ama Cuida!</p>
         </div>
 
         <div class="form-group">
-            <label>📝 Seu relato *</label>
-            <textarea id="relato" placeholder="Descreva o problema ou elogio aqui..."></textarea>
-        </div>
-
-        <div class="form-group">
-            <label>🏷️ Categoria</label>
+            <label> Estou contribuindo com...</label>
             <div class="tag-buttons" id="tagButtons">
-                <button type="button" class="tag-btn" data-tag="Lixo">🗑️ Lixo</button>
-                <button type="button" class="tag-btn" data-tag="Rua">🛣️ Rua</button>
-                <button type="button" class="tag-btn" data-tag="Iluminacao">💡 Luz</button>
-                <button type="button" class="tag-btn" data-tag="Outro">📌 Outro</button>
+                <button type="button" class="tag-btn" data-tag="elogio">👍 Elogio</button>
+                <button type="button" class="tag-btn" data-tag="reclamacao">👎 Reclamação</button>
+                <button type="button" class="tag-btn" data-tag="sugestao">💡 Sugestão</button>
             </div>
         </div>
 
         <div class="form-group">
-            <label>📸 Foto (Obrigatória) *</label>
-            <!-- Botão que agora captura GPS e abre a câmera simultaneamente -->
-            <button class="camera-btn" onclick="abrirCameraECapturarGps()">📷 Tirar Foto do Local</button>
+            <label> 🗣️ E o assunto é o seguinte... </label>
+            <textarea id="relato" placeholder="Descreva a situação. Não é preciso se identificar. Nenhum dado pessoal será coletado."></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>📸 Foto </label>
+            <!-- Alterado para capturar GPS ao clicar -->
+            <button class="camera-btn" onclick="abrirCameraECapturarGps()">📷 Tirar Foto</button>
             <input type="file" id="fileInput" accept="image/*" capture="environment" style="display: none;">
             
             <div class="photo-preview" id="photoPreview" style="display: none;">
                 <img id="previewImg" src="">
-                <p id="fotoInfo" style="font-size: 11px; color: #666; text-align: center; margin-top: 5px;"></p>
+                <p id="fotoInfo" style="font-size: 10px; color: #666; text-align: center; margin-top: 5px;"></p>
             </div>
         </div>
 
         <div class="location-box">
-            <div id="locationStatus">
-                <strong>📍 Localização:</strong><br>
-                <span id="locationText">Aguardando clique na foto...</span>
-            </div>
+            📍 <span id="locationText">Aguardando clique na foto para obter GPS...</span>
         </div>
 
         <button class="submit-btn" id="submitBtn">🚀 Enviar Relato</button>
     </div>
 
-    <!-- Tela de Carregamento -->
     <div id="loading" class="loading">
-        <div class="spinner"></div>
-        <div id="loadingText">Processando localização e imagem...</div>
+        <div style="font-size: 32px; margin-bottom: 15px; animation: pulse 1s infinite;">⏳</div>
+        <div id="loadingText">Processando e Enviando...</div>
     </div>
 
     <script>
-        // ================================================================
-        // 1. COLOQUE O SEU LINK DO CLOUDFLARE ENTRE AS ASPAS ABAIXO:
-        const API_URL = 'https://understanding-perth-fin-instructors.trycloudflare.com';
-        // ================================================================
+        // 1. ATUALIZE O LINK DO CLOUDFLARE AQUI:
+        const API_URL = 'https://ciao-asked-shot-ooo.trycloudflare.com';
 
         let fotoProcessadaBlob = null;
         let localizacao = null;
         let tagSelecionada = "";
 
-        // --- LÓGICA DAS CATEGORIAS (TAGS) ---
+        // Lógica das Tags
         document.querySelectorAll('.tag-btn').forEach(btn => {
             btn.onclick = () => {
                 document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
@@ -99,27 +88,20 @@
 
         // --- NOVA FUNÇÃO: CAPTURA GPS NO MOMENTO DA FOTO ---
         function abrirCameraECapturarGps() {
-            document.getElementById('locationText').innerText = "Capturando coordenadas GPS precisas...";
+            document.getElementById('locationText').innerText = "📍 Localizando ponto da ocorrência...";
             
-            // Tenta obter a localização com alta precisão no exato momento do clique
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    localizacao = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    document.getElementById('locationText').innerHTML = `<span style="color: #2e7d32;">✅ Localização capturada no ponto da foto!</span>`;
-                    console.log("GPS da foto:", localizacao);
-                },
-                (err) => {
-                    console.error("Erro GPS:", err);
-                    document.getElementById('locationText').innerHTML = `<span style="color: #d32f2f;">⚠️ Erro GPS: Ative a localização e tente de novo.</span>`;
-                },
-                { enableHighAccuracy: true, timeout: 8000 }
-            );
+            navigator.geolocation.getCurrentPosition(pos => {
+                localizacao = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                document.getElementById('locationText').innerText = "✅ Localização. Usada no mapa de ocorrências.";
+            }, err => {
+                document.getElementById('locationText').innerText = "❌ GPS necessário! Ative nas configurações.";
+                console.error(err);
+            }, { enableHighAccuracy: true, timeout: 10000 });
 
-            // Abre o seletor de arquivos/câmera
             document.getElementById('fileInput').click();
         }
 
-        // --- FUNÇÃO DE COMPRESSÃO DE IMAGEM (Resolve iPhone e Internet Lenta) ---
+        // --- FUNÇÃO DE COMPRESSÃO DE IMAGEM ---
         async function comprimirImagem(arquivo) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -131,7 +113,7 @@
                         const canvas = document.createElement('canvas');
                         let width = img.width;
                         let height = img.height;
-                        const MAX_DIMENSION = 1280; // Resolução HD - Leve e nítida
+                        const MAX_DIMENSION = 1280; 
 
                         if (width > height) {
                             if (width > MAX_DIMENSION) {
@@ -152,49 +134,47 @@
 
                         canvas.toBlob((blob) => {
                             resolve(blob);
-                        }, 'image/jpeg', 0.7); // 70% de qualidade para ser rápido
+                        }, 'image/jpeg', 0.7); 
                     };
                 };
             });
         }
 
-        // --- LÓGICA APÓS TIRAR A FOTO ---
+        // Lógica após tirar a foto
         document.getElementById('fileInput').onchange = async (e) => {
             const arquivoOriginal = e.target.files[0];
             if (!arquivoOriginal) return;
 
             document.getElementById('loading').style.display = 'flex';
-            document.getElementById('loadingText').innerText = "Otimizando foto para o sistema...";
+            document.getElementById('loadingText').innerText = "Otimizando imagem...";
             
-            // Processa a foto e converte HEIC/Large para JPG leve
             fotoProcessadaBlob = await comprimirImagem(arquivoOriginal);
             
             const urlPreview = URL.createObjectURL(fotoProcessadaBlob);
             document.getElementById('previewImg').src = urlPreview;
             document.getElementById('photoPreview').style.display = 'block';
-            document.getElementById('fotoInfo').innerText = `Foto pronta para envio (${(fotoProcessadaBlob.size / 1024).toFixed(0)} KB)`;
+            document.getElementById('fotoInfo').innerText = `Foto pronta (${(fotoProcessadaBlob.size / 1024).toFixed(0)} KB)`;
             
             document.getElementById('loading').style.display = 'none';
         };
 
-        // --- FUNÇÃO FINAL: ENVIAR PARA O POCKETBASE NO UBUNTU ---
+        // ENVIAR RELATO
         document.getElementById('submitBtn').onclick = async () => {
             const texto = document.getElementById('relato').value.trim();
             
-            // Validação simples
-            if (!texto) { alert("Escreva um pequeno relato sobre o problema."); return; }
-            if (!fotoProcessadaBlob) { alert("A foto é obrigatória para o registro."); return; }
-            if (!localizacao) { alert("Aguardando localização GPS. Certifique-se de que o GPS está ativo."); return; }
+            if (!texto || !fotoProcessadaBlob || !localizacao) {
+                alert("Por favor: escolha uma categoria, escreva o relato, tire uma foto e autorize o GPS!");
+                return;
+            }
 
             document.getElementById('loading').style.display = 'flex';
-            document.getElementById('loadingText').innerText = "Enviando dados para a central...";
-            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('loadingText').innerText = "Enviando para a central...";
 
             const formData = new FormData();
             formData.append('texto', texto);
             formData.append('latitude', localizacao.lat);
             formData.append('longitude', localizacao.lng);
-            formData.append('tags', tagSelecionada || 'Outro');
+            formData.append('tags', tagSelecionada || 'sugestao');
             formData.append('status', 'pendente');
             formData.append('foto', fotoProcessadaBlob, 'ocorrencia.jpg');
 
@@ -205,18 +185,16 @@
                 });
 
                 if (res.ok) {
-                    alert("✅ Sucesso! Seu relato foi registrado no mapa da cidade.");
+                    alert("✅ Relato enviado com sucesso! Obrigado!");
                     location.reload();
                 } else {
-                    const erroDados = await res.json();
-                    alert("❌ Erro no Servidor: " + JSON.stringify(erroDados.data));
+                    const erro = await res.json();
+                    alert("❌ Erro do Servidor: " + JSON.stringify(erro.data));
                 }
             } catch (err) {
-                alert("❌ Erro de conexão: O computador da escola está ligado e o link do Cloudflare atualizado?");
-                console.error(err);
+                alert("❌ Erro de conexão. O computador da escola está ligado e o link do Cloudflare está certo no GitHub?");
             } finally {
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('submitBtn').disabled = false;
             }
         };
     </script>
