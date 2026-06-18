@@ -3,51 +3,200 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Barra Linda</title>
+    <title>Painel BarraLinda - Mapa e Estatísticas</title>
+    
+    <!-- Leaflet (Mapa) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Chart.js (Gráficos) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        body { margin: 0; padding: 0; }
-        #map { height: 100vh; width: 100%; }
-        .header-map { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-weight: bold; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f4f4f9; }
+        
+        .header { background: #2e7d32; color: white; padding: 15px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Lateral de Filtros e Gráficos */
+        .sidebar { width: 350px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 1000; }
+        
+        #map { flex: 1; position: relative; }
+
+        .filter-group { margin-bottom: 25px; }
+        .filter-group h3 { font-size: 14px; margin-bottom: 10px; color: #666; text-transform: uppercase; }
+        
+        .checkbox-item { display: flex; align-items: center; margin-bottom: 8px; cursor: pointer; font-size: 14px; }
+        .checkbox-item input { margin-right: 10px; width: 18px; height: 18px; }
+
+        .stats-container { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+        
+        /* Estilo dos Marcadores Coloridos */
+        .dot { height: 14px; width: 14px; border-radius: 50%; display: inline-block; margin-right: 5px; border: 2px solid white; box-shadow: 0 0 3px rgba(0,0,0,0.3); }
+        .bg-reclamacao { background-color: #d32f2f; }
+        .bg-sugestao { background-color: #fbc02d; }
+        .bg-elogio { background-color: #388e3c; }
+
+        .popup-img { width: 100%; border-radius: 8px; margin-top: 10px; }
+
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; order: 2; }
+            #map { height: 300px; order: 1; }
+        }
     </style>
 </head>
 <body>
-    <div class="header-map">🗺️ Mapa de Ocorrências</div>
-    <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div class="header">
+        <h1>🗺️ Monitoramento Barra Linda</h1>
+    </div>
+
+    <div class="main-container">
+        <!-- Barra Lateral -->
+        <div class="sidebar">
+            <div class="filter-group">
+                <h3>🔍 Filtrar no Mapa</h3>
+                <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="Lixo"> 🗑️ Lixo (Reclamação)</label>
+                <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="Rua"> 🛣️ Rua (Reclamação)</label>
+                <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="Iluminacao"> 💡 Luz (Sugestão)</label>
+                <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="Outro"> 📌 Outros</label>
+            </div>
+
+            <div class="stats-container">
+                <h3>📊 Saúde da Cidade</h3>
+                <canvas id="chartStatus"></canvas>
+                <p id="totalRegistros" style="text-align: center; margin-top: 10px; font-weight: bold; color: #2e7d32;"></p>
+            </div>
+            
+            <div style="margin-top: 20px; font-size: 12px; color: #999;">
+                <p><span class="dot bg-reclamacao"></span> Crítico / Reclamação</p>
+                <p><span class="dot bg-sugestao"></span> Atenção / Sugestão</p>
+                <p><span class="dot bg-elogio"></span> Positivo / Elogio</p>
+            </div>
+        </div>
+
+        <!-- Mapa -->
+        <div id="map"></div>
+    </div>
+
     <script>
-        // 1. COLOQUE O SEU LINK DO CLOUDFLARE AQUI TAMBÉM:
-        const API_URL = 'https://ciao-asked-shot-ooo.trycloudflare.com';
+        // ================================================================
+        // 1. ATUALIZE O LINK DO CLOUDFLARE AQUI:
+        const API_URL = 'https://governing-earned-relating-way.trycloudflare.com';
+        // ================================================================
 
-        const map = L.map('map').setView([-18.573, -39.732], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        let map, chart;
+        let todasOcorrencias = [];
+        let camadaMarcadores = L.layerGroup();
 
-        async function carregarMarcadores() {
+        // Inicializa o Mapa
+        function initMap() {
+            map = L.map('map').setView([-18.573, -39.732], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            camadaMarcadores.addTo(map);
+        }
+
+        // Define a cor baseada na categoria (Tag)
+        function getCorPorTag(tag) {
+            if (tag === 'Lixo' || tag === 'Rua') return '#d32f2f'; // Vermelho (Crítico)
+            if (tag === 'Iluminacao' || tag === 'Outro') return '#fbc02d'; // Amarelo (Atenção)
+            return '#388e3c'; // Verde (Elogio - caso adicione depois)
+        }
+
+        // Cria um ícone circular colorido
+        function criarIconeColorido(cor) {
+            return L.divIcon({
+                html: `<div style="background-color: ${cor}; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
+                className: '',
+                iconSize: [16, 16]
+            });
+        }
+
+        // Busca dados do servidor
+        async function carregarDados() {
             try {
                 const res = await fetch(`${API_URL}/api/collections/ocorrencias/records`);
-                const dados = await res.json();
-
-                dados.items.forEach(oc => {
-                    const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
-                    
-                    L.marker([oc.latitude, oc.longitude])
-                        .addTo(map)
-                        .bindPopup(`
-                            <div style="width: 200px">
-                                <strong>${oc.tags || 'Relato'}</strong><br>
-                                <p>${oc.texto}</p>
-                                <img src="${fotoUrl}" style="width: 100%; border-radius: 5px">
-                                <br><small>Status: ${oc.status}</small>
-                            </div>
-                        `);
-                });
+                const data = await res.json();
+                todasOcorrencias = data.items;
+                
+                renderizarMapa();
+                atualizarGrafico();
             } catch (err) {
-                console.error("Erro ao carregar mapa", err);
+                console.error("Erro ao carregar dados:", err);
             }
         }
 
-        carregarMarcadores();
+        // Desenha os marcadores conforme os filtros
+        function renderizarMapa() {
+            camadaMarcadores.clearLayers();
+            
+            // Pega as categorias selecionadas nos checkboxes
+            const tagsAtivas = Array.from(document.querySelectorAll('.filter-check:checked')).map(cb => cb.value);
+
+            todasOcorrencias.forEach(oc => {
+                if (tagsAtivas.includes(oc.tags)) {
+                    const cor = getCorPorTag(oc.tags);
+                    const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
+                    
+                    const marker = L.marker([oc.latitude, oc.longitude], { icon: criarIconeColorido(cor) });
+                    
+                    marker.bindPopup(`
+                        <div style="width: 200px">
+                            <strong style="color: ${cor}">${oc.tags.toUpperCase()}</strong><br>
+                            <small>${new Date(oc.created).toLocaleString()}</small>
+                            <p style="margin-top:5px;">${oc.texto}</p>
+                            <img src="${fotoUrl}" class="popup-img">
+                            <div style="margin-top:8px; font-size:11px; font-weight:bold;">Status: ${oc.status.toUpperCase()}</div>
+                        </div>
+                    `);
+                    camadaMarcadores.addLayer(marker);
+                }
+            });
+        }
+
+        // Atualiza o Gráfico de Pizza (Chart.js)
+        function atualizarGrafico() {
+            const resumo = { Lixo: 0, Rua: 0, Iluminacao: 0, Outro: 0 };
+            todasOcorrencias.forEach(oc => { if(resumo[oc.tags] !== undefined) resumo[oc.tags]++; });
+
+            const ctx = document.getElementById('chartStatus').getContext('2d');
+            
+            if (chart) chart.destroy(); // Destrói o anterior para não sobrepor
+
+            chart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Lixo', 'Rua', 'Luz', 'Outro'],
+                    datasets: [{
+                        data: [resumo.Lixo, resumo.Rua, resumo.Iluminacao, resumo.Outro],
+                        backgroundColor: ['#d32f2f', '#f44336', '#fbc02d', '#9e9e9e']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            document.getElementById('totalRegistros').innerText = `Total: ${todasOcorrencias.length} ocorrências`;
+        }
+
+        // Escuta mudanças nos filtros
+        document.querySelectorAll('.filter-check').forEach(cb => {
+            cb.addEventListener('change', renderizarMapa);
+        });
+
+        // Inicialização
+        initMap();
+        carregarDados();
+        
+        // Atualiza os dados a cada 30 segundos sozinho
+        setInterval(carregarDados, 30000);
     </script>
 </body>
 </html>
