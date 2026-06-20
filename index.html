@@ -21,14 +21,40 @@
         .header h1 { color: #2e7d32; font-size: 28px; }
         .form-group { margin-bottom: 25px; }
         label { display: block; font-weight: 600; margin-bottom: 10px; color: #333; }
-        textarea { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 12px; font-size: 16px; min-height: 100px; font-family: inherit; }
+        
+        textarea { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 12px; font-size: 16px; min-height: 100px; font-family: inherit; outline: none; }
+        textarea:focus { border-color: #2e7d32; }
+
         .tag-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
-        .tag-btn { padding: 10px 18px; border: 2px solid #2e7d32; border-radius: 25px; background: white; color: #2e7d32; cursor: pointer; transition: 0.3s; font-weight: 600; }
-        .tag-btn.selected { background: #2e7d32; color: white; }
+        
+        /* Estilo padrão do botão */
+        .tag-btn { 
+            padding: 12px 20px; 
+            border: 2px solid #2e7d32; 
+            border-radius: 25px; 
+            background: white; 
+            color: #2e7d32; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            font-weight: 600; 
+            font-size: 14px;
+        }
+
+        /* ESTILO DO BOTÃO QUANDO SELECIONADO */
+        .tag-btn.selected { 
+            background-color: #2e7d32 !important; 
+            color: white !important; 
+            box-shadow: 0 4px 8px rgba(46, 125, 50, 0.3);
+            transform: scale(1.05);
+        }
+
         .camera-btn { width: 100%; padding: 15px; background: #2196f3; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; }
         .photo-preview img { max-width: 100%; border-radius: 12px; margin-top: 10px; border: 2px solid #eee; }
         .location-box { background: #e3f2fd; padding: 15px; border-radius: 12px; margin: 15px 0; font-size: 14px; border-left: 5px solid #2196f3; }
-        .submit-btn { width: 100%; padding: 16px; background: #2e7d32; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        
+        .submit-btn { width: 100%; padding: 16px; background: #2e7d32; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .submit-btn:active { background: #1b5e20; }
+
         .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; text-align: center; }
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #2e7d32; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -83,17 +109,27 @@
     </div>
 
     <script>
+        // O link vem do arquivo config.js
         const API_URL = CONFIG.API_URL;
+        
         let fotoProcessadaBlob = null;
         let localizacao = null;
         let tagSelecionada = "";
 
-        document.querySelectorAll('.tag-btn').forEach(btn => {
-            btn.onclick = () => {
-                document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                tagSelecionada = btn.dataset.tag;
-            };
+        // Lógica para marcar o botão selecionado
+        const botoesTag = document.querySelectorAll('.tag-btn');
+        botoesTag.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove a cor verde de todos os botões
+                botoesTag.forEach(b => b.classList.remove('selected'));
+                
+                // Adiciona a cor verde apenas no botão clicado
+                this.classList.add('selected');
+                
+                // Salva qual tag foi escolhida
+                tagSelecionada = this.getAttribute('data-tag');
+                console.log("Categoria selecionada:", tagSelecionada);
+            });
         });
 
         function abrirCameraECapturarGps() {
@@ -147,18 +183,25 @@
 
         document.getElementById('submitBtn').onclick = async () => {
             const texto = document.getElementById('relato').value.trim();
-            if (!texto || !fotoProcessadaBlob || !localizacao) {
-                alert("Por favor: escolha categoria, escreva o relato, tire foto e autorize o GPS!");
+            
+            if (!tagSelecionada) {
+                alert("Por favor: escolha se é Elogio, Reclamação ou Sugestão!");
                 return;
             }
+            if (!texto || !fotoProcessadaBlob || !localizacao) {
+                alert("Por favor: escreva o relato, tire a foto e autorize o GPS!");
+                return;
+            }
+
             document.getElementById('loading').style.display = 'flex';
             const formData = new FormData();
             formData.append('texto', texto);
             formData.append('latitude', localizacao.lat);
             formData.append('longitude', localizacao.lng);
-            formData.append('tags', tagSelecionada || 'sugestao');
+            formData.append('tags', tagSelecionada);
             formData.append('status', 'pendente');
             formData.append('foto', fotoProcessadaBlob, 'ocorrencia.jpg');
+
             try {
                 const res = await fetch(`${API_URL}/api/collections/ocorrencias/records`, {
                     method: 'POST', body: formData
@@ -171,7 +214,7 @@
                     alert("❌ Erro: " + JSON.stringify(erro.data));
                 }
             } catch (err) {
-                alert("❌ Erro de conexão com o servidor local.");
+                alert("❌ Erro de conexão com o servidor local. Verifique o Cloudflare.");
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
