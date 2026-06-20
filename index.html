@@ -4,17 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     
-    <!-- CONFIGURAÇÕES DE APLICATIVO (PWA) -->
-    <title>BarraLinda - Enviar Relato</title>
+    <title>BarraLinda</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2e7d32">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="BarraLinda">
     <link rel="apple-touch-icon" href="farol.png">
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, sans-serif; background: #e8ecf1; padding: 20px; min-height: 100vh; }
         .container { max-width: 500px; margin: 0 auto; background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .header { text-align: center; margin-bottom: 30px; }
@@ -23,46 +21,34 @@
         label { display: block; font-weight: 600; margin-bottom: 10px; color: #333; }
         
         textarea { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 12px; font-size: 16px; min-height: 100px; font-family: inherit; outline: none; }
-        textarea:focus { border-color: #2e7d32; }
 
         .tag-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
-        
-        /* Estilo padrão do botão */
         .tag-btn { 
-            padding: 12px 20px; 
-            border: 2px solid #2e7d32; 
-            border-radius: 25px; 
-            background: white; 
-            color: #2e7d32; 
-            cursor: pointer; 
-            transition: all 0.2s ease; 
-            font-weight: 600; 
-            font-size: 14px;
+            padding: 12px 20px; border: 2px solid #2e7d32; border-radius: 25px; 
+            background: white; color: #2e7d32; cursor: pointer; font-weight: 600; font-size: 14px;
+            flex: 1; text-align: center; min-width: 100px;
         }
 
-        /* ESTILO DO BOTÃO QUANDO SELECIONADO */
+        /* Corrigido: CSS mais forte para a seleção */
         .tag-btn.selected { 
             background-color: #2e7d32 !important; 
             color: white !important; 
-            box-shadow: 0 4px 8px rgba(46, 125, 50, 0.3);
-            transform: scale(1.05);
         }
 
-        .camera-btn { width: 100%; padding: 15px; background: #2196f3; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .camera-btn { width: 100%; padding: 16px; background: #2196f3; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; margin-top: 5px; }
         .photo-preview img { max-width: 100%; border-radius: 12px; margin-top: 10px; border: 2px solid #eee; }
         .location-box { background: #e3f2fd; padding: 15px; border-radius: 12px; margin: 15px 0; font-size: 14px; border-left: 5px solid #2196f3; }
         
-        .submit-btn { width: 100%; padding: 16px; background: #2e7d32; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .submit-btn:active { background: #1b5e20; }
+        .submit-btn { width: 100%; padding: 18px; background: #2e7d32; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; margin-top: 10px; }
 
-        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; text-align: center; }
+        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; }
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #2e7d32; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     
-    <!-- Script de configuração centralizada -->
+    <!-- Carrega o config primeiro -->
     <script src="config.js"></script>
 
     <div class="container">
@@ -72,7 +58,7 @@
         </div>
 
         <div class="form-group">
-            <label> Estou contribuindo com...</label>
+            <label>Estou contribuindo com...</label>
             <div class="tag-buttons" id="tagButtons">
                 <button type="button" class="tag-btn" data-tag="elogio">👍 Elogio</button>
                 <button type="button" class="tag-btn" data-tag="reclamacao">👎 Reclamação</button>
@@ -81,13 +67,13 @@
         </div>
 
         <div class="form-group">
-            <label> 🗣️ E o assunto é o seguinte... </label>
-            <textarea id="relato" placeholder="Descreva a situação. Não é preciso se identificar."></textarea>
+            <label>🗣️ O assunto é o seguinte...</label>
+            <textarea id="relato" placeholder="Descreva a situação aqui..."></textarea>
         </div>
         
         <div class="form-group">
-            <label>📸 Foto </label>
-            <button class="camera-btn" onclick="abrirCameraECapturarGps()">📷 Tirar Foto</button>
+            <label>📸 Foto</label>
+            <button type="button" class="camera-btn" id="btnDispararCamera">📷 Tirar Foto</button>
             <input type="file" id="fileInput" accept="image/*" capture="environment" style="display: none;">
             
             <div class="photo-preview" id="photoPreview" style="display: none;">
@@ -97,54 +83,65 @@
         </div>
 
         <div class="location-box">
-            📍 <span id="locationText">Aguardando clique na foto para obter GPS...</span>
+            📍 <span id="locationText">Aguardando GPS...</span>
         </div>
 
-        <button class="submit-btn" id="submitBtn">🚀 Enviar Relato</button>
+        <button type="button" class="submit-btn" id="btnEnviar">🚀 Enviar Relato</button>
     </div>
 
     <div id="loading" class="loading">
         <div class="spinner"></div>
-        <div id="loadingText">Processando e Enviando...</div>
+        <div id="loadingText">Processando...</div>
     </div>
 
     <script>
-        // O link vem do arquivo config.js
-        const API_URL = CONFIG.API_URL;
-        
-        let fotoProcessadaBlob = null;
-        let localizacao = null;
-        let tagSelecionada = "";
+        // Aguarda a página carregar totalmente
+        window.addEventListener('load', function() {
+            
+            let API_URL = "";
+            if (typeof CONFIG !== 'undefined') {
+                API_URL = CONFIG.API_URL;
+            } else {
+                alert("Erro: Arquivo config.js não encontrado!");
+            }
 
-        // Lógica para marcar o botão selecionado
-        const botoesTag = document.querySelectorAll('.tag-btn');
-        botoesTag.forEach(btn => {
-            btn.addEventListener('click', function() {
-                // Remove a cor verde de todos os botões
-                botoesTag.forEach(b => b.classList.remove('selected'));
-                
-                // Adiciona a cor verde apenas no botão clicado
-                this.classList.add('selected');
-                
-                // Salva qual tag foi escolhida
-                tagSelecionada = this.getAttribute('data-tag');
-                console.log("Categoria selecionada:", tagSelecionada);
+            let fotoProcessadaBlob = null;
+            let localizacao = null;
+            let tagSelecionada = "";
+
+            // Lógica dos Botões de Tag (Categoria)
+            const botoesTag = document.querySelectorAll('.tag-btn');
+            botoesTag.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    botoesTag.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    tagSelecionada = this.getAttribute('data-tag');
+                });
             });
-        });
 
-        function abrirCameraECapturarGps() {
-            document.getElementById('locationText').innerText = "📍 Localizando ponto da ocorrência...";
-            navigator.geolocation.getCurrentPosition(pos => {
-                localizacao = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                document.getElementById('locationText').innerText = "✅ Localização capturada no ponto da foto.";
-            }, err => {
-                document.getElementById('locationText').innerText = "❌ Ative o GPS para marcar o mapa.";
-            }, { enableHighAccuracy: true, timeout: 10000 });
-            document.getElementById('fileInput').click();
-        }
+            // Lógica do Botão de Câmera
+            document.getElementById('btnDispararCamera').addEventListener('click', function() {
+                document.getElementById('locationText').innerText = "📍 Localizando ponto...";
+                
+                navigator.geolocation.getCurrentPosition(pos => {
+                    localizacao = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    document.getElementById('locationText').innerText = "✅ Localização capturada!";
+                }, err => {
+                    document.getElementById('locationText').innerText = "⚠️ Ative o GPS para enviar.";
+                }, { enableHighAccuracy: true, timeout: 10000 });
 
-        async function comprimirImagem(arquivo) {
-            return new Promise((resolve) => {
+                document.getElementById('fileInput').click();
+            });
+
+            // Processamento da Foto (Compressão)
+            document.getElementById('fileInput').onchange = async (e) => {
+                const arquivo = e.target.files[0];
+                if (!arquivo) return;
+
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('loadingText').innerText = "Otimizando foto...";
+
                 const reader = new FileReader();
                 reader.readAsDataURL(arquivo);
                 reader.onload = (event) => {
@@ -152,73 +149,55 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        let width = img.width;
-                        let height = img.height;
-                        const MAX_DIMENSION = 1280; 
-                        if (width > height) {
-                            if (width > MAX_DIMENSION) { height *= MAX_DIMENSION / width; width = MAX_DIMENSION; }
-                        } else {
-                            if (height > MAX_DIMENSION) { width *= MAX_DIMENSION / height; height = MAX_DIMENSION; }
-                        }
-                        canvas.width = width; canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        canvas.toBlob((blob) => { resolve(blob); }, 'image/jpeg', 0.7); 
+                        let w = img.width, h = img.height;
+                        if (w > h && w > 1280) { h *= 1280/w; w = 1280; }
+                        else if (h > 1280) { w *= 1280/h; h = 1280; }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        canvas.toBlob(blob => {
+                            fotoProcessadaBlob = blob;
+                            document.getElementById('previewImg').src = URL.createObjectURL(blob);
+                            document.getElementById('photoPreview').style.display = 'block';
+                            document.getElementById('fotoInfo').innerText = `Pronta (${(blob.size/1024).toFixed(0)}KB)`;
+                            document.getElementById('loading').style.display = 'none';
+                        }, 'image/jpeg', 0.7);
                     };
                 };
-            });
-        }
+            };
 
-        document.getElementById('fileInput').onchange = async (e) => {
-            const arquivoOriginal = e.target.files[0];
-            if (!arquivoOriginal) return;
-            document.getElementById('loading').style.display = 'flex';
-            document.getElementById('loadingText').innerText = "Otimizando imagem...";
-            fotoProcessadaBlob = await comprimirImagem(arquivoOriginal);
-            document.getElementById('previewImg').src = URL.createObjectURL(fotoProcessadaBlob);
-            document.getElementById('photoPreview').style.display = 'block';
-            document.getElementById('fotoInfo').innerText = `Foto pronta (${(fotoProcessadaBlob.size / 1024).toFixed(0)} KB)`;
-            document.getElementById('loading').style.display = 'none';
-        };
+            // Envio Final
+            document.getElementById('btnEnviar').addEventListener('click', async function() {
+                const texto = document.getElementById('relato').value.trim();
+                
+                if (!tagSelecionada) { alert("Selecione uma categoria!"); return; }
+                if (!texto || !fotoProcessadaBlob || !localizacao) { alert("Preencha tudo e autorize o GPS!"); return; }
 
-        document.getElementById('submitBtn').onclick = async () => {
-            const texto = document.getElementById('relato').value.trim();
-            
-            if (!tagSelecionada) {
-                alert("Por favor: escolha se é Elogio, Reclamação ou Sugestão!");
-                return;
-            }
-            if (!texto || !fotoProcessadaBlob || !localizacao) {
-                alert("Por favor: escreva o relato, tire a foto e autorize o GPS!");
-                return;
-            }
+                document.getElementById('loading').style.display = 'flex';
+                const formData = new FormData();
+                formData.append('texto', texto);
+                formData.append('latitude', localizacao.lat);
+                formData.append('longitude', localizacao.lng);
+                formData.append('tags', tagSelecionada);
+                formData.append('status', 'pendente');
+                formData.append('foto', fotoProcessadaBlob, 'foto.jpg');
 
-            document.getElementById('loading').style.display = 'flex';
-            const formData = new FormData();
-            formData.append('texto', texto);
-            formData.append('latitude', localizacao.lat);
-            formData.append('longitude', localizacao.lng);
-            formData.append('tags', tagSelecionada);
-            formData.append('status', 'pendente');
-            formData.append('foto', fotoProcessadaBlob, 'ocorrencia.jpg');
-
-            try {
-                const res = await fetch(`${API_URL}/api/collections/ocorrencias/records`, {
-                    method: 'POST', body: formData
-                });
-                if (res.ok) {
-                    alert("✅ Relato enviado com sucesso!");
-                    location.reload();
-                } else {
-                    const erro = await res.json();
-                    alert("❌ Erro: " + JSON.stringify(erro.data));
+                try {
+                    const res = await fetch(`${API_URL}/api/collections/ocorrencias/records`, {
+                        method: 'POST', body: formData
+                    });
+                    if (res.ok) {
+                        alert("✅ Sucesso!");
+                        location.reload();
+                    } else {
+                        alert("Erro no servidor local.");
+                    }
+                } catch (err) {
+                    alert("Erro de conexão. Verifique o servidor da escola.");
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
                 }
-            } catch (err) {
-                alert("❌ Erro de conexão com o servidor local. Verifique o Cloudflare.");
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
-        };
+            });
+        });
     </script>
 </body>
 </html>
