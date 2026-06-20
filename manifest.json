@@ -1,20 +1,16 @@
 {
   "name": "Barra Linda. Quem Ama Cuida!",
   "short_name": "BarraLinda",
-  "start_url": ".",
+  "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#f5f6fa",
+  "background_color": "#ffffff",
   "theme_color": "#2e7d32",
   "icons": [
     {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
+      "src": "icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
