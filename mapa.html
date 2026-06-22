@@ -116,7 +116,6 @@
 
         async function carregarDados() {
             try {
-                // CORREÇÃO: Fechamento correto da URL com ) e `
                 const res = await fetch(`${API_URL}/api/collections/ocorrencias/records?filter=(visivel=true)`);
                 const data = await res.json();
                 todasOcorrencias = data.items;
