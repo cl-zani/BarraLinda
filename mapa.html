@@ -139,7 +139,7 @@
             return '#9e9e9e';
         }
 
-        function renderizarMapa() {
+function renderizarMapa() {
             // Limpa o mapa antes de desenhar
             camadaMarcadores.clearLayers();
             if (heatLayer) map.removeLayer(heatLayer);
@@ -148,17 +148,21 @@
             const dadosFiltrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
 
             if (modoHeatmap) {
-                // CORREÇÃO: Converter latitude e longitude de texto para número real (parseFloat)
+                // CORREÇÃO DE VISIBILIDADE: Aumentamos a intensidade para 1.0
                 const pontosCalor = dadosFiltrados.map(oc => {
                     const lat = parseFloat(oc.latitude);
                     const lng = parseFloat(oc.longitude);
-                    return (!isNaN(lat) && !isNaN(lng)) ? [lat, lng, 0.6] : null;
+                    return (!isNaN(lat) && !isNaN(lng)) ? [lat, lng, 1.0] : null;
                 }).filter(p => p !== null);
 
+                console.log("📍 Pontos enviados para o calor:", pontosCalor.length);
+
+                // AJUSTE DE OPÇÕES: Aumentamos o raio (radius) de 25 para 50 para a mancha ficar visível
                 heatLayer = L.heatLayer(pontosCalor, {
-                    radius: 25, 
-                    blur: 15, 
-                    max: 1.0,
+                    radius: 50, 
+                    blur: 20, 
+                    maxZoom: 10,
+                    minOpacity: 0.5, // Garante que a mancha apareça mesmo com 1 ponto
                     gradient: {0.4: 'blue', 0.6: 'cyan', 0.8: 'yellow', 1.0: 'red'}
                 }).addTo(map);
             } else {
@@ -167,7 +171,7 @@
                     const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
                     
                     const marker = L.circleMarker([parseFloat(oc.latitude), parseFloat(oc.longitude)], {
-                        radius: 9, fillOpacity: 0.9, color: 'white', weight: 2, fillColor: cor
+                        radius: 10, fillOpacity: 0.9, color: 'white', weight: 2, fillColor: cor
                     });
 
                     const labelTag = oc.tags.charAt(0).toUpperCase() + oc.tags.slice(1);
