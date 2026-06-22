@@ -117,7 +117,7 @@
 
         async function carregarDados() {
             try {
-                const res = await fetch(`${API_URL}/api/collections/ocorrencias/records?sort=-created`);
+                const res = await fetch(`${API_URL}/api/collections/ocorrencias/records?filter=(visivel=true);
                 const data = await res.json();
                 todasOcorrencias = data.items;
                 atualizarTudo();
