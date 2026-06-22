@@ -4,12 +4,12 @@
     <script src="config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Barra Linda - Versão Estabilidade</title>
+    <title>Painel Barra Linda - Versão Estável</title>
     
+    <!-- Bibliotecas Padrão -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Plugin de Calor -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -18,26 +18,22 @@
         .header { background: #1b5e20; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
         .main-container { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 350px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 1001; }
-        #map { flex: 1; z-index: 1; background: #e5e3df; }
-        .section { margin-bottom: 25px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        #map { flex: 1; z-index: 1; background: #ddd; }
+        .section { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         h3 { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 10px; }
         .btn-toggle { width: 100%; padding: 12px; background: #2196f3; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
         .checkbox-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 14px; }
-        .ranking-item { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
-        .ranking-count { background: #eee; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+        .ranking-item { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px dashed #eee; }
         canvas { max-width: 100%; }
-        /* CSS para o Mapa de Calor aparecer no Pentium Gold */
-        .leaflet-heatmap-layer { 
-            opacity: 1 !important; 
-            z-index: 999 !important; 
-            mix-blend-mode: multiply; /* Melhora a visualização em mapas claros */
-        }
+        
+        /* Ajuste visual para o calor */
+        .leaflet-heatmap-layer { opacity: 0.8 !important; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h2>🏛️ Barra Linda - Gestão</h2>
+        <h2>🏛️ Painel Barra Linda</h2>
         <div id="clock"></div>
     </div>
 
@@ -57,7 +53,7 @@
             </div>
 
             <div class="section">
-                <h3>Resumo</h3>
+                <h3>Resumo por Tipo</h3>
                 <div id="rankingList"></div>
             </div>
 
@@ -70,51 +66,43 @@
     </div>
 
     <script>
-        // ==========================================================
-        // PATCH DE HARDWARE: Resolve o erro "willReadFrequently"
-        // Isso força o navegador a processar o calor na RAM.
-        // ==========================================================
-        (function() {
-            const originalGetContext = HTMLCanvasElement.prototype.getContext;
-            HTMLCanvasElement.prototype.getContext = function(type, attributes) {
-                if (type === '2d') {
-                    attributes = attributes || {};
-                    attributes.willReadFrequently = true;
-                }
-                return originalGetContext.call(this, type, attributes);
-            };
-        })();
-
         const API_URL = CONFIG.API_URL;
         let map, heatLayer, chartStatus;
         let todasOcorrencias = [];
         let camadaMarcadores = L.layerGroup();
         let modoHeatmap = false;
 
+        // 1. Inicializa o Mapa
         function init() {
-            // preferCanvas: true ajuda no desempenho de hardware fraco
-            map = L.map('map', { preferCanvas: true }).setView([-18.573, -39.732], 14);
+            map = L.map('map').setView([-18.573, -39.732], 14);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
             camadaMarcadores.addTo(map);
             carregarDados();
         }
 
+        // 2. Busca Dados do Pocketbase
         async function carregarDados() {
             try {
-                const res = await fetch(`${API_URL}/api/collections/ocorrencias/records?filter=(visivel=true)&perPage=200`);
+                console.log("Conectando ao Pocketbase...");
+                const res = await fetch(`${API_URL}/api/collections/ocorrencias/records?filter=(visivel=true)`);
                 const data = await res.json();
                 todasOcorrencias = data.items;
-                atualizarPainel();
-            } catch (e) { console.error("Erro Pocketbase:", e); }
+                console.log("Dados carregados:", todasOcorrencias.length);
+                atualizarTudo();
+            } catch (e) {
+                console.error("Erro ao carregar:", e);
+            }
         }
 
-        function atualizarPainel() {
+        function atualizarTudo() {
             renderizarMapa();
             renderizarRanking();
             renderizarGrafico();
         }
 
+        // 3. Desenha no Mapa
         function renderizarMapa() {
+            // Limpa tudo antes
             camadaMarcadores.clearLayers();
             if (heatLayer) map.removeLayer(heatLayer);
 
@@ -122,27 +110,25 @@
             const filtrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
 
             if (modoHeatmap) {
-                // Prepara pontos para o calor com intensidade forte
-                const pontos = filtrados.map(oc => [
-                    parseFloat(oc.latitude), 
-                    parseFloat(oc.longitude), 
-                    1.0
-                ]).filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+                // Modo CALOR
+                const pontos = filtrados.map(oc => {
+                    const lat = parseFloat(oc.latitude);
+                    const lng = parseFloat(oc.longitude);
+                    return [lat, lng, 1.0]; // Intensidade máxima
+                }).filter(p => !isNaN(p[0]));
 
                 if (pontos.length > 0) {
                     heatLayer = L.heatLayer(pontos, {
                         radius: 40,
                         blur: 20,
                         max: 1.0,
-                        minOpacity: 0.6,
+                        minOpacity: 0.5,
                         gradient: {0.4: 'blue', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
                     }).addTo(map);
-                    
-                    // Força o redesenho imediato
-                    setTimeout(() => { map.invalidateSize(); }, 300);
-                    console.log("🔥 Mapa de calor desenhado com " + pontos.length + " pontos.");
+                    console.log("Mapa de calor desenhado!");
                 }
             } else {
+                // Modo MARCADORES
                 filtrados.forEach(oc => {
                     const cor = oc.tags === 'reclamacao' ? '#ff5252' : oc.tags === 'sugestao' ? '#ffb300' : '#4caf50';
                     const marker = L.circleMarker([oc.latitude, oc.longitude], {
@@ -156,16 +142,18 @@
             }
         }
 
+        // 4. Ranking Lateral
         function renderizarRanking() {
             const c = { reclamacao: 0, sugestao: 0, elogio: 0 };
             todasOcorrencias.forEach(oc => { if(c[oc.tags] !== undefined) c[oc.tags]++; });
             document.getElementById('rankingList').innerHTML = `
-                <div class="ranking-item"><span>👎 Reclamações</span><span class="ranking-count">${c.reclamacao}</span></div>
-                <div class="ranking-item"><span>💡 Sugestões</span><span class="ranking-count">${c.sugestao}</span></div>
-                <div class="ranking-item"><span>👍 Elogios</span><span class="ranking-count">${c.elogio}</span></div>
+                <div class="ranking-item"><span>👎 Reclamações</span><span style="font-weight:bold">${c.reclamacao}</span></div>
+                <div class="ranking-item"><span>💡 Sugestões</span><span style="font-weight:bold">${c.sugestao}</span></div>
+                <div class="ranking-item"><span>👍 Elogios</span><span style="font-weight:bold">${c.elogio}</span></div>
             `;
         }
 
+        // 5. Gráfico de Rosca
         function renderizarGrafico() {
             const res = todasOcorrencias.filter(o => o.status === 'resolvido').length;
             const pen = todasOcorrencias.length - res;
@@ -175,20 +163,23 @@
                 data: {
                     labels: ['Resolvido', 'Pendente'],
                     datasets: [{ data: [res, pen], backgroundColor: ['#2e7d32', '#ff5252'] }]
-                },
-                options: { plugins: { legend: { position: 'bottom' } } }
+                }
             });
         }
 
+        // --- BOTÕES ---
         document.getElementById('btnHeatmap').onclick = function() {
             modoHeatmap = !modoHeatmap;
-            this.innerText = modoHeatmap ? "📍 Ver Marcadores" : "🔥 Ver Mapa de Calor";
+            this.innerText = modoHeatmap ? "📍 Ver Localizadores" : "🔥 Ativar Mapa de Calor";
             renderizarMapa();
         };
 
         document.getElementById('btnRefresh').onclick = carregarDados;
         document.querySelectorAll('.filter-check').forEach(c => c.onchange = renderizarMapa);
-        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleString('pt-BR'); }, 1000);
+        
+        setInterval(() => { 
+            document.getElementById('clock').innerText = new Date().toLocaleString('pt-BR'); 
+        }, 1000);
 
         init();
     </script>
