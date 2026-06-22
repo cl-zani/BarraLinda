@@ -4,12 +4,12 @@
     <script src="config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard BarraLinda - Mapa e Estatísticas</title>
+    <title>Dashboard Barra Linda - Oficial</title>
     
     <!-- Leaflet e Plugins -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Biblioteca oficial para o Mapa de Calor -->
+    <!-- Plugin de Calor - Versão Estável para computadores modestos -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
     
     <!-- Chart.js -->
@@ -20,16 +20,11 @@
         body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f0f2f5; color: #333; }
         .header { background: #1b5e20; color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; }
         
-        .leaflet-heatmap-layer {
-            opacity: 0.8 !important;
-            z-index: 999 !important;
-            pointer-events: none;
-        }
         .main-container { display: flex; flex: 1; overflow: hidden; }
         
         /* Sidebar lateral */
         .sidebar { width: 380px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 1001; }
-        #map { flex: 1; z-index: 1; }
+        #map { flex: 1; z-index: 1; background: #e5e3df; }
 
         .section { margin-bottom: 30px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         h3 { font-size: 14px; color: #666; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
@@ -43,13 +38,12 @@
         .ranking-item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px dashed #eee; }
         .ranking-count { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
 
-        /* Gráficos */
         canvas { max-width: 100%; margin-top: 10px; }
-
         .popup-img { width: 100%; border-radius: 8px; margin-top: 10px; cursor: pointer; }
-
-        /* Cores das Legendas */
         .legenda-cor { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
+        /* Força a visibilidade da camada de calor no Canvas */
+        .leaflet-heatmap-layer { opacity: 0.9 !important; z-index: 999 !important; }
 
         @media (max-width: 900px) {
             .main-container { flex-direction: column; }
@@ -67,7 +61,6 @@
 
     <div class="main-container">
         <aside class="sidebar">
-            
             <div class="section">
                 <h3>🛠️ Visualização</h3>
                 <button class="btn-toggle" id="btnHeatmap">🔥 Ativar Mapa de Calor</button>
@@ -97,7 +90,6 @@
                 <h3>📅 Novos Relatos (7 dias)</h3>
                 <canvas id="chartTimeline"></canvas>
             </div>
-
         </aside>
 
         <main id="map"></main>
@@ -112,8 +104,8 @@
         let modoHeatmap = false;
 
         function init() {
-            // Inicializa o mapa centralizado na região
-            map = L.map('map').setView([-18.573, -39.732], 14);
+            // Inicializa o mapa focado na região informada
+            map = L.map('map', { preferCanvas: true }).setView([-18.573, -39.732], 14);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
             camadaMarcadores.addTo(map);
             carregarDados();
@@ -121,13 +113,15 @@
 
         async function carregarDados() {
             try {
+                // Filtra apenas o que a IA já aprovou
                 const res = await fetch(`${API_URL}/api/collections/ocorrencias/records?filter=(visivel=true)`);
                 const data = await res.json();
                 todasOcorrencias = data.items;
+                console.log("📥 Dados carregados:", todasOcorrencias.length);
                 atualizarTudo();
             } catch (e) { 
                 console.error("Erro ao conectar:", e);
-                alert("Erro ao conectar com o servidor local. Verifique o link do Cloudflare."); 
+                alert("Erro ao carregar dados. Verifique o servidor."); 
             }
         }
 
@@ -144,8 +138,7 @@
             return '#9e9e9e';
         }
 
-function renderizarMapa() {
-            // 1. Limpeza total
+        function renderizarMapa() {
             camadaMarcadores.clearLayers();
             if (heatLayer) {
                 map.removeLayer(heatLayer);
@@ -156,56 +149,56 @@ function renderizarMapa() {
             const dadosFiltrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
 
             if (modoHeatmap) {
-                console.log("🔥 Preparando calor para " + dadosFiltrados.length + " pontos...");
+                console.log("🔥 Gerando calor para " + dadosFiltrados.length + " pontos.");
                 
-                // 2. Transforma dados garantindo que são números e intensidade 1.0
                 const pontosCalor = dadosFiltrados.map(oc => {
                     const lat = parseFloat(oc.latitude);
                     const lng = parseFloat(oc.longitude);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        return [lat, lng, 1.0]; // Intensidade máxima
-                    }
-                    return null;
+                    // Intensidade alta (1.5) para forçar visibilidade em telas humildes
+                    return (!isNaN(lat) && !isNaN(lng)) ? [lat, lng, 1.5] : null;
                 }).filter(p => p !== null);
 
                 if (pontosCalor.length > 0) {
-                    // 3. Cria a camada com configurações ultra visíveis
                     heatLayer = L.heatLayer(pontosCalor, {
-                        radius: 50,      // Mancha grande
-                        blur: 20,        // Bordas suaves
+                        radius: 40,
+                        blur: 15,
                         max: 1.0,
-                        minOpacity: 0.6, // Começa já bem visível
-                        gradient: {0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red'}
+                        minOpacity: 0.7, // Mancha bem visível desde o início
+                        gradient: {0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 1.0: 'red'}
                     }).addTo(map);
-
-                    // 4. TRUQUE: Força o redesenho do mapa (essencial para o Pentium Gold)
-                    setTimeout(() => {
-                        map.invalidateSize();
-                        if(heatLayer) heatLayer.redraw();
-                    }, 500);
                     
-                    console.log("✅ Camada de calor adicionada!");
-                } else {
-                    console.warn("⚠️ Nenhum ponto válido para calor.");
+                    // Força o mapa a se redesenhar (importante para o Pentium Gold)
+                    setTimeout(() => { 
+                        map.invalidateSize(); 
+                        if(heatLayer) heatLayer.redraw();
+                    }, 400);
                 }
             } else {
-                // Modo Marcadores (isso já sabemos que funciona)
                 dadosFiltrados.forEach(oc => {
                     const cor = getCor(oc.tags);
-                    const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
-                    const marker = L.circleMarker([parseFloat(oc.latitude), parseFloat(oc.longitude)], {
-                        radius: 10, fillOpacity: 0.9, color: 'white', weight: 2, fillColor: cor
-                    });
+                    const lat = parseFloat(oc.latitude);
+                    const lng = parseFloat(oc.longitude);
                     
-                    const labelTag = oc.tags.charAt(0).toUpperCase() + oc.tags.slice(1);
-                    marker.bindPopup(`
-                        <div style="width:210px;">
-                            <b style="color:${cor}">${labelTag.toUpperCase()}</b><br>
-                            <p>${oc.texto}</p>
-                            <img src="${fotoUrl}" class="popup-img">
-                        </div>
-                    `);
-                    camadaMarcadores.addLayer(marker);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        const marker = L.circleMarker([lat, lng], {
+                            radius: 10, fillOpacity: 0.9, color: 'white', weight: 2, fillColor: cor
+                        });
+
+                        const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
+                        const dataFormatada = new Date(oc.created).toLocaleString('pt-BR');
+
+                        marker.bindPopup(`
+                            <div style="width:210px; font-family: sans-serif;">
+                                <b style="color:${cor}; text-transform: uppercase;">${oc.tags}</b><br>
+                                <small>${dataFormatada}</small>
+                                <p style="margin:8px 0; font-size: 13px;">${oc.texto}</p>
+                                <img src="${fotoUrl}" class="popup-img" onclick="window.open('${fotoUrl}')">
+                                <hr style="margin:8px 0; border:0; border-top:1px solid #eee;">
+                                <small>Status: <b>${oc.status.toUpperCase()}</b></small>
+                            </div>
+                        `);
+                        camadaMarcadores.addLayer(marker);
+                    }
                 });
             }
         }
@@ -215,9 +208,7 @@ function renderizarMapa() {
             todasOcorrencias.forEach(oc => {
                 if(contagem[oc.tags] !== undefined) contagem[oc.tags]++;
             });
-            
             const labels = { reclamacao: "👎 Reclamações", sugestao: "💡 Sugestões", elogio: "👍 Elogios" };
-
             document.getElementById('rankingList').innerHTML = Object.keys(contagem).map(key => `
                 <div class="ranking-item">
                     <span>${labels[key]}</span>
@@ -235,11 +226,7 @@ function renderizarMapa() {
                 type: 'doughnut',
                 data: {
                     labels: ['Resolvido', 'Pendente'],
-                    datasets: [{ 
-                        data: [resolvidos, pendentes], 
-                        backgroundColor: ['#2e7d32', '#ff5252'],
-                        borderWidth: 0 
-                    }]
+                    datasets: [{ data: [resolvidos, pendentes], backgroundColor: ['#2e7d32', '#ff5252'], borderWidth: 0 }]
                 },
                 options: { plugins: { legend: { position: 'bottom' } } }
             });
@@ -259,23 +246,16 @@ function renderizarMapa() {
                 type: 'line',
                 data: {
                     labels: Object.keys(dias),
-                    datasets: [{ 
-                        label: 'Relatos', 
-                        data: Object.values(dias), 
-                        borderColor: '#1b5e20', 
-                        backgroundColor: 'rgba(27,94,32,0.1)',
-                        fill: true,
-                        tension: 0.3 
-                    }]
+                    datasets: [{ label: 'Relatos', data: Object.values(dias), borderColor: '#1b5e20', backgroundColor: 'rgba(27,94,32,0.1)', fill: true, tension: 0.3 }]
                 },
                 options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
         }
 
-        // Eventos de Interface
+        // --- BOTÕES E EVENTOS ---
         document.getElementById('btnHeatmap').onclick = function() {
             modoHeatmap = !modoHeatmap;
-            this.innerText = modoHeatmap ? "📍 Mostrar Pontos" : "🔥 Ativar Mapa de Calor";
+            this.innerText = modoHeatmap ? "📍 Mostrar Localizadores" : "🔥 Ativar Mapa de Calor";
             renderizarMapa();
         };
 
@@ -283,8 +263,7 @@ function renderizarMapa() {
         document.querySelectorAll('.filter-check').forEach(c => c.onchange = renderizarMapa);
 
         setInterval(() => { 
-            const agora = new Date();
-            document.getElementById('clock').innerText = agora.toLocaleString('pt-BR'); 
+            document.getElementById('clock').innerText = new Date().toLocaleString('pt-BR'); 
         }, 1000);
 
         init();
