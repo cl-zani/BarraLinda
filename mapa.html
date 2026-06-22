@@ -20,6 +20,11 @@
         body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f0f2f5; color: #333; }
         .header { background: #1b5e20; color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; }
         
+        .leaflet-heatmap-layer {
+            opacity: 0.8 !important;
+            z-index: 999 !important;
+            pointer-events: none;
+        }
         .main-container { display: flex; flex: 1; overflow: hidden; }
         
         /* Sidebar lateral */
@@ -140,50 +145,64 @@
         }
 
 function renderizarMapa() {
-            // Limpa o mapa antes de desenhar
+            // 1. Limpeza total
             camadaMarcadores.clearLayers();
-            if (heatLayer) map.removeLayer(heatLayer);
+            if (heatLayer) {
+                map.removeLayer(heatLayer);
+                heatLayer = null;
+            }
 
             const tagsAtivas = Array.from(document.querySelectorAll('.filter-check:checked')).map(cb => cb.value);
             const dadosFiltrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
 
             if (modoHeatmap) {
-                // CORREÇÃO DE VISIBILIDADE: Aumentamos a intensidade para 1.0
+                console.log("🔥 Preparando calor para " + dadosFiltrados.length + " pontos...");
+                
+                // 2. Transforma dados garantindo que são números e intensidade 1.0
                 const pontosCalor = dadosFiltrados.map(oc => {
                     const lat = parseFloat(oc.latitude);
                     const lng = parseFloat(oc.longitude);
-                    return (!isNaN(lat) && !isNaN(lng)) ? [lat, lng, 1.0] : null;
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        return [lat, lng, 1.0]; // Intensidade máxima
+                    }
+                    return null;
                 }).filter(p => p !== null);
 
-                console.log("📍 Pontos enviados para o calor:", pontosCalor.length);
+                if (pontosCalor.length > 0) {
+                    // 3. Cria a camada com configurações ultra visíveis
+                    heatLayer = L.heatLayer(pontosCalor, {
+                        radius: 50,      // Mancha grande
+                        blur: 20,        // Bordas suaves
+                        max: 1.0,
+                        minOpacity: 0.6, // Começa já bem visível
+                        gradient: {0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red'}
+                    }).addTo(map);
 
-                // AJUSTE DE OPÇÕES: Aumentamos o raio (radius) de 25 para 50 para a mancha ficar visível
-                heatLayer = L.heatLayer(pontosCalor, {
-                    radius: 50, 
-                    blur: 20, 
-                    maxZoom: 10,
-                    minOpacity: 0.5, // Garante que a mancha apareça mesmo com 1 ponto
-                    gradient: {0.4: 'blue', 0.6: 'cyan', 0.8: 'yellow', 1.0: 'red'}
-                }).addTo(map);
+                    // 4. TRUQUE: Força o redesenho do mapa (essencial para o Pentium Gold)
+                    setTimeout(() => {
+                        map.invalidateSize();
+                        if(heatLayer) heatLayer.redraw();
+                    }, 500);
+                    
+                    console.log("✅ Camada de calor adicionada!");
+                } else {
+                    console.warn("⚠️ Nenhum ponto válido para calor.");
+                }
             } else {
+                // Modo Marcadores (isso já sabemos que funciona)
                 dadosFiltrados.forEach(oc => {
                     const cor = getCor(oc.tags);
                     const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
-                    
                     const marker = L.circleMarker([parseFloat(oc.latitude), parseFloat(oc.longitude)], {
                         radius: 10, fillOpacity: 0.9, color: 'white', weight: 2, fillColor: cor
                     });
-
+                    
                     const labelTag = oc.tags.charAt(0).toUpperCase() + oc.tags.slice(1);
-
                     marker.bindPopup(`
-                        <div style="width:210px; font-family: sans-serif;">
-                            <b style="color:${cor}; font-size: 14px;">${labelTag.toUpperCase()}</b><br>
-                            <small style="color: #666;">${new Date(oc.created).toLocaleString()}</small>
-                            <p style="margin:8px 0; font-size: 13px; line-height: 1.4;">${oc.texto}</p>
-                            <img src="${fotoUrl}" class="popup-img" onclick="window.open('${fotoUrl}')" title="Clique para ampliar">
-                            <hr style="margin: 8px 0; border: 0; border-top: 1px solid #eee;">
-                            <small>Status: <b style="text-transform: uppercase;">${oc.status}</b></small>
+                        <div style="width:210px;">
+                            <b style="color:${cor}">${labelTag.toUpperCase()}</b><br>
+                            <p>${oc.texto}</p>
+                            <img src="${fotoUrl}" class="popup-img">
                         </div>
                     `);
                     camadaMarcadores.addLayer(marker);
