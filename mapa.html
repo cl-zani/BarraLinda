@@ -4,75 +4,110 @@
     <script src="config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Barra Linda - Versão Estável</title>
+    <title>Dashboard BarraLinda - Mapa e Estatísticas</title>
     
-    <!-- Bibliotecas Padrão -->
+    <!-- Leaflet e Plugins -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f0f2f5; }
-        .header { background: #1b5e20; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .main-container { display: flex; flex: 1; overflow: hidden; }
-        .sidebar { width: 350px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 1001; }
-        #map { flex: 1; z-index: 1; background: #ddd; }
-        .section { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
-        h3 { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 10px; }
-        .btn-toggle { width: 100%; padding: 12px; background: #2196f3; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
-        .checkbox-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 14px; }
-        .ranking-item { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px dashed #eee; }
-        canvas { max-width: 100%; }
+        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f0f2f5; color: #333; }
+        .header { background: #1b5e20; color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; }
         
-        /* Ajuste visual para o calor */
-        .leaflet-heatmap-layer { opacity: 0.8 !important; }
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Sidebar lateral */
+        .sidebar { width: 380px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 1001; }
+        #map { flex: 1; z-index: 1; }
+
+        .section { margin-bottom: 30px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        h3 { font-size: 14px; color: #666; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
+
+        /* Filtros e Botões */
+        .checkbox-item { display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; cursor: pointer; }
+        .checkbox-item input { margin-right: 12px; transform: scale(1.2); }
+        .btn-toggle { width: 100%; padding: 10px; background: #2196f3; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
+        
+        /* Ranking */
+        .ranking-item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px dashed #eee; }
+        .ranking-count { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+
+        /* Gráficos */
+        canvas { max-width: 100%; margin-top: 10px; }
+
+        .popup-img { width: 100%; border-radius: 8px; margin-top: 10px; cursor: pointer; }
+
+        /* Cores das Legendas */
+        .legenda-cor { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
+        @media (max-width: 900px) {
+            .main-container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; }
+            #map { min-height: 400px; }
+        }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h2>🏛️ Painel Barra Linda</h2>
-        <div id="clock"></div>
+        <div id="clock" style="font-size: 12px; opacity: 0.8;"></div>
     </div>
 
     <div class="main-container">
         <aside class="sidebar">
+            
             <div class="section">
-                <h3>Visualização</h3>
+                <h3>🛠️ Visualização</h3>
                 <button class="btn-toggle" id="btnHeatmap">🔥 Ativar Mapa de Calor</button>
                 <button class="btn-toggle" style="background: #4caf50;" id="btnRefresh">🔄 Atualizar Dados</button>
             </div>
 
             <div class="section">
-                <h3>Categorias</h3>
-                <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="reclamacao"> 👎 Reclamação</label>
-                <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="sugestao"> 💡 Sugestão</label>
-                <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="elogio"> 👍 Elogio</label>
+                <h3>🔍 Categorias</h3>
+                <div id="filterContainer">
+                    <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="reclamacao"> <span class="legenda-cor" style="background:#ff5252"></span> 👎 Reclamação</label>
+                    <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="sugestao"> <span class="legenda-cor" style="background:#ffb300"></span> 💡 Sugestão</label>
+                    <label class="checkbox-item"><input type="checkbox" checked class="filter-check" value="elogio"> <span class="legenda-cor" style="background:#4caf50"></span> 👍 Elogio</label>
+                </div>
             </div>
 
             <div class="section">
-                <h3>Resumo por Tipo</h3>
-                <div id="rankingList"></div>
+                <h3>🏆 Resumo por Tipo</h3>
+                <div id="rankingList">Carregando...</div>
             </div>
 
             <div class="section">
+                <h3>📈 Eficácia (Resolvidos)</h3>
                 <canvas id="chartStatus"></canvas>
             </div>
+
+            <div class="section">
+                <h3>📅 Novos Relatos (7 dias)</h3>
+                <canvas id="chartTimeline"></canvas>
+            </div>
+
         </aside>
 
         <main id="map"></main>
     </div>
 
     <script>
+        // ================================================================
+        // Obtem link automaticamente do arquivo config.js
         const API_URL = CONFIG.API_URL;
-        let map, heatLayer, chartStatus;
+        // ================================================================
+
+        let map, chartStatus, chartTimeline, heatLayer;
         let todasOcorrencias = [];
         let camadaMarcadores = L.layerGroup();
         let modoHeatmap = false;
 
-        // 1. Inicializa o Mapa
         function init() {
             map = L.map('map').setView([-18.573, -39.732], 14);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
@@ -80,106 +115,142 @@
             carregarDados();
         }
 
-        // 2. Busca Dados do Pocketbase
         async function carregarDados() {
             try {
-                console.log("Conectando ao Pocketbase...");
                 const res = await fetch(`${API_URL}/api/collections/ocorrencias/records?filter=(visivel=true)`);
                 const data = await res.json();
                 todasOcorrencias = data.items;
-                console.log("Dados carregados:", todasOcorrencias.length);
                 atualizarTudo();
-            } catch (e) {
-                console.error("Erro ao carregar:", e);
+            } catch (e) { 
+                console.error("Erro ao conectar:", e);
+                alert("Erro ao conectar com o servidor local. Verifique o link do Cloudflare."); 
             }
         }
 
         function atualizarTudo() {
             renderizarMapa();
+            renderizarGraficos();
             renderizarRanking();
-            renderizarGrafico();
         }
 
-        // 3. Desenha no Mapa
+        function getCor(tag) {
+            if (tag === 'reclamacao') return '#ff5252';
+            if (tag === 'sugestao') return '#ffb300';
+            if (tag === 'elogio') return '#4caf50';
+            return '#9e9e9e';
+        }
+
         function renderizarMapa() {
-            // Limpa tudo antes
             camadaMarcadores.clearLayers();
             if (heatLayer) map.removeLayer(heatLayer);
 
             const tagsAtivas = Array.from(document.querySelectorAll('.filter-check:checked')).map(cb => cb.value);
-            const filtrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
+            const dadosFiltrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
 
             if (modoHeatmap) {
-                // Modo CALOR
-                const pontos = filtrados.map(oc => {
-                    const lat = parseFloat(oc.latitude);
-                    const lng = parseFloat(oc.longitude);
-                    return [lat, lng, 1.0]; // Intensidade máxima
-                }).filter(p => !isNaN(p[0]));
-
-                if (pontos.length > 0) {
-                    heatLayer = L.heatLayer(pontos, {
-                        radius: 40,
-                        blur: 20,
-                        max: 1.0,
-                        minOpacity: 0.5,
-                        gradient: {0.4: 'blue', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
-                    }).addTo(map);
-                    console.log("Mapa de calor desenhado!");
-                }
+                const pontosCalor = dadosFiltrados.map(oc => [oc.latitude, oc.longitude, 0.5]);
+                heatLayer = L.heatLayer(pontosCalor, {radius: 25, blur: 15, max: 1.0}).addTo(map);
             } else {
-                // Modo MARCADORES
-                filtrados.forEach(oc => {
-                    const cor = oc.tags === 'reclamacao' ? '#ff5252' : oc.tags === 'sugestao' ? '#ffb300' : '#4caf50';
-                    const marker = L.circleMarker([oc.latitude, oc.longitude], {
-                        radius: 10, fillColor: cor, color: '#fff', weight: 2, fillOpacity: 0.8
-                    });
-                    
+                dadosFiltrados.forEach(oc => {
+                    const cor = getCor(oc.tags);
                     const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
-                    marker.bindPopup(`<b>${oc.tags.toUpperCase()}</b><br>${oc.texto}<br><img src="${fotoUrl}" style="width:100%;margin-top:5px;border-radius:5px;">`);
+                    
+                    const marker = L.circleMarker([oc.latitude, oc.longitude], {
+                        radius: 9, fillOpacity: 0.9, color: 'white', weight: 2, fillColor: cor
+                    });
+
+                    const labelTag = oc.tags.charAt(0).toUpperCase() + oc.tags.slice(1);
+
+                    marker.bindPopup(`
+                        <div style="width:210px; font-family: sans-serif;">
+                            <b style="color:${cor}; font-size: 14px;">${labelTag.toUpperCase()}</b><br>
+                            <small style="color: #666;">${new Date(oc.created).toLocaleString()}</small>
+                            <p style="margin:8px 0; font-size: 13px; line-height: 1.4;">${oc.texto}</p>
+                            <img src="${fotoUrl}" class="popup-img" onclick="window.open('${fotoUrl}')" title="Clique para ampliar">
+                            <hr style="margin: 8px 0; border: 0; border-top: 1px solid #eee;">
+                            <small>Status: <b style="text-transform: uppercase;">${oc.status}</b></small>
+                        </div>
+                    `);
                     camadaMarcadores.addLayer(marker);
                 });
             }
         }
 
-        // 4. Ranking Lateral
         function renderizarRanking() {
-            const c = { reclamacao: 0, sugestao: 0, elogio: 0 };
-            todasOcorrencias.forEach(oc => { if(c[oc.tags] !== undefined) c[oc.tags]++; });
-            document.getElementById('rankingList').innerHTML = `
-                <div class="ranking-item"><span>👎 Reclamações</span><span style="font-weight:bold">${c.reclamacao}</span></div>
-                <div class="ranking-item"><span>💡 Sugestões</span><span style="font-weight:bold">${c.sugestao}</span></div>
-                <div class="ranking-item"><span>👍 Elogios</span><span style="font-weight:bold">${c.elogio}</span></div>
-            `;
+            const contagem = { reclamacao: 0, sugestao: 0, elogio: 0 };
+            todasOcorrencias.forEach(oc => {
+                if(contagem[oc.tags] !== undefined) contagem[oc.tags]++;
+            });
+            
+            const labels = { reclamacao: "👎 Reclamações", sugestao: "💡 Sugestões", elogio: "👍 Elogios" };
+
+            document.getElementById('rankingList').innerHTML = Object.keys(contagem).map(key => `
+                <div class="ranking-item">
+                    <span>${labels[key]}</span>
+                    <span class="ranking-count" style="background: ${getCor(key)}22; color: ${getCor(key)}">${contagem[key]}</span>
+                </div>
+            `).join('');
         }
 
-        // 5. Gráfico de Rosca
-        function renderizarGrafico() {
-            const res = todasOcorrencias.filter(o => o.status === 'resolvido').length;
-            const pen = todasOcorrencias.length - res;
+        function renderizarGraficos() {
+            // 1. Gráfico de Status (Eficácia)
+            const resolvidos = todasOcorrencias.filter(o => o.status === 'resolvido').length;
+            const pendentes = todasOcorrencias.length - resolvidos;
+
             if (chartStatus) chartStatus.destroy();
             chartStatus = new Chart(document.getElementById('chartStatus'), {
                 type: 'doughnut',
                 data: {
                     labels: ['Resolvido', 'Pendente'],
-                    datasets: [{ data: [res, pen], backgroundColor: ['#2e7d32', '#ff5252'] }]
-                }
+                    datasets: [{ 
+                        data: [resolvidos, pendentes], 
+                        backgroundColor: ['#2e7d32', '#ff5252'],
+                        borderWidth: 0 
+                    }]
+                },
+                options: { plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // 2. Gráfico de Linha (Timeline)
+            const dias = {};
+            for(let i=6; i>=0; i--) {
+                const d = new Date(); d.setDate(d.getDate()-i);
+                dias[d.toLocaleDateString('pt-BR').slice(0,5)] = 0;
+            }
+            todasOcorrencias.forEach(oc => {
+                const dataOc = new Date(oc.created).toLocaleDateString('pt-BR').slice(0,5);
+                if(dias[dataOc] !== undefined) dias[dataOc]++;
+            });
+
+            if (chartTimeline) chartTimeline.destroy();
+            chartTimeline = new Chart(document.getElementById('chartTimeline'), {
+                type: 'line',
+                data: {
+                    labels: Object.keys(dias),
+                    datasets: [{ 
+                        label: 'Relatos', 
+                        data: Object.values(dias), 
+                        borderColor: '#1b5e20', 
+                        backgroundColor: 'rgba(27,94,32,0.1)',
+                        fill: true,
+                        tension: 0.3 
+                    }]
+                },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
         }
 
-        // --- BOTÕES ---
+        // Eventos de Interface
         document.getElementById('btnHeatmap').onclick = function() {
             modoHeatmap = !modoHeatmap;
-            this.innerText = modoHeatmap ? "📍 Ver Localizadores" : "🔥 Ativar Mapa de Calor";
+            this.innerText = modoHeatmap ? "📍 Mostrar Pontos" : "🔥 Ativar Mapa de Calor";
             renderizarMapa();
         };
 
         document.getElementById('btnRefresh').onclick = carregarDados;
         document.querySelectorAll('.filter-check').forEach(c => c.onchange = renderizarMapa);
-        
-        setInterval(() => { 
-            document.getElementById('clock').innerText = new Date().toLocaleString('pt-BR'); 
-        }, 1000);
+
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleString('pt-BR'); }, 1000);
 
         init();
     </script>
