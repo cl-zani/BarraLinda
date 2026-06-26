@@ -205,8 +205,36 @@
             const dadosFiltrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
 
             if (modoHeatmap) {
-                const pontosCalor = dadosFiltrados.map(oc => [oc.latitude, oc.longitude, 0.5]);
-                heatLayer = L.heatLayer(pontosCalor, {radius: 25, blur: 15, max: 1.0}).addTo(map);
+                // garantir que plugin está carregado
+                if (!L.heatLayer) {
+                    console.error('Leaflet.heat não está disponível.');
+                    alert('Mapa de calor indisponível (plugin ausente).');
+                    return;
+                }
+
+                const pontosCalor = [];
+                for (let i = 0; i < dadosFiltrados.length; i++) {
+                    const oc = dadosFiltrados[i];
+                    const lat = parseFloat(oc.latitude);
+                    const lng = parseFloat(oc.longitude);
+                    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                        // intensidade: opcional - se a propriedade existir (ex: oc.intensity) usar, senão usar 0.5
+                        const intensity = (oc.intensity ? parseFloat(oc.intensity) : 0.5);
+                        pontosCalor.push([lat, lng, isFinite(intensity) ? intensity : 0.5]);
+                    }
+                }
+
+                if (pontosCalor.length === 0) {
+                    console.warn('Nenhum ponto válido para o mapa de calor.');
+                    return;
+                }
+
+                // remover camada de marcadores quando mostrando heatmap para evitar sobreposição
+                try { camadaMarcadores.clearLayers(); } catch(e){}
+
+                heatLayer = L.heatLayer(pontosCalor, { radius: 25, blur: 15, max: 1.0 });
+                heatLayer.addTo(map);
+
             } else {
                 // carregar apenas marcadores dentro do viewport atual para economizar (quando lots)
                 const bounds = map.getBounds();
@@ -215,10 +243,13 @@
 
                 for (let i = 0; i < dadosFiltrados.length; i++) {
                     const oc = dadosFiltrados[i];
-                    if (!oc || typeof oc.latitude !== 'number' || typeof oc.longitude !== 'number') continue;
+                    if (!oc) continue;
+                    const lat = parseFloat(oc.latitude);
+                    const lng = parseFloat(oc.longitude);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
                     // se fora do bounds, pular (a menos que dataset pequeno)
-                    if (dadosFiltrados.length > 500 && !bounds.contains([oc.latitude, oc.longitude])) continue;
+                    if (dadosFiltrados.length > 500 && !bounds.contains([lat, lng])) continue;
 
                     const cor = getCor(oc.tags);
                     const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
@@ -233,7 +264,7 @@
                     "></span>`;
 
                     const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [18,18] });
-                    const marker = L.marker([oc.latitude, oc.longitude], { icon: icon });
+                    const marker = L.marker([lat, lng], { icon: icon });
 
                     const labelTag = (oc.tags && oc.tags.length) ? (oc.tags.charAt(0).toUpperCase() + oc.tags.slice(1)) : '';
 
