@@ -32,7 +32,7 @@
         .photo-preview img { max-width: 100%; border-radius: 12px; margin-top: 10px; border: 2px solid #ddd; }
         .location-box { background: #e3f2fd; padding: 15px; border-radius: 12px; margin: 15px 0; font-size: 13px; color: #0d47a1; border-left: 5px solid #2196f3; }
         .submit-btn { width: 100%; padding: 20px; background: #2e7d32; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; margin-top: 10px; }
-        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; color: white; }
+        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #2e7d32; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
@@ -94,6 +94,9 @@
         let gps = null;
         let tagGlobal = "";
 
+        // Para controlar object URLs de preview e liberar memória
+        let previewObjectUrl = null;
+
         function selecionarTag(btn, valor) {
             document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
@@ -111,30 +114,43 @@
             document.getElementById('fileInput').click();
         }
 
-        function processarFoto(input) {
+        async function processarFoto(input) {
             const arquivo = input.files[0];
             if (!arquivo) return;
             document.getElementById('loading').style.display = 'flex';
-            const reader = new FileReader();
-            reader.readAsDataURL(arquivo);
-            reader.onload = (e) => {
-                const img = new Image();
-                img.src = e.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let w = img.width, h = img.height;
-                    if (w > h && w > 1024) { h *= 1024/w; w = 1024; }
-                    else if (h > 1024) { w *= 1024/h; h = 1024; }
-                    canvas.width = w; canvas.height = h;
-                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                    canvas.toBlob(blob => {
-                        fotoBlob = blob;
-                        document.getElementById('previewImg').src = URL.createObjectURL(blob);
-                        document.getElementById('photoPreview').style.display = 'block';
-                        document.getElementById('loading').style.display = 'none';
-                    }, 'image/jpeg', 0.7);
-                };
-            };
+
+            try {
+                // Usar createImageBitmap quando disponível (mais rápido que readAsDataURL)
+                const bitmap = await createImageBitmap(arquivo);
+                let w = bitmap.width, h = bitmap.height;
+                if (w > h && w > 1024) { h *= 1024 / w; w = 1024; }
+                else if (h > 1024) { w *= 1024 / h; h = 1024; }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(w);
+                canvas.height = Math.round(h);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(blob => {
+                    fotoBlob = blob;
+
+                    // preview via object URL (evitar base64)
+                    if (previewObjectUrl) {
+                        try { URL.revokeObjectURL(previewObjectUrl); } catch(e){}
+                        previewObjectUrl = null;
+                    }
+                    previewObjectUrl = URL.createObjectURL(blob);
+                    const previewImg = document.getElementById('previewImg');
+                    previewImg.src = previewObjectUrl;
+                    document.getElementById('photoPreview').style.display = 'block';
+                    document.getElementById('loading').style.display = 'none';
+                }, 'image/jpeg', 0.7);
+            } catch (err) {
+                console.error('Erro ao processar foto:', err);
+                alert('Erro ao processar a foto. Tente outro arquivo.');
+                document.getElementById('loading').style.display = 'none';
+            }
         }
 
         async function enviarTudo() {
@@ -157,12 +173,30 @@
                     method: 'POST', body: fd
                 });
                 if (res.ok) {
+                    // liberar preview antes do reload para evitar vazamento (boa prática)
+                    if (previewObjectUrl) {
+                        try { URL.revokeObjectURL(previewObjectUrl); } catch(e){}
+                        previewObjectUrl = null;
+                    }
                     alert("✅ Enviado com sucesso!");
                     location.reload();
-                } else { alert("Erro no servidor."); }
-            } catch (err) { alert("Erro de conexão. Servidor ligado?"); }
+                } else {
+                    alert("Erro no servidor.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erro de conexão. Servidor ligado?");
+            }
             document.getElementById('loading').style.display = 'none';
         }
+
+        // Liberar object URL ao fechar/recarregar a página
+        window.addEventListener('beforeunload', () => {
+            if (previewObjectUrl) {
+                try { URL.revokeObjectURL(previewObjectUrl); } catch(e){}
+                previewObjectUrl = null;
+            }
+        });
     </script>
 </body>
 </html>
