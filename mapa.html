@@ -6,10 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard BarraLinda - Mapa e Estatísticas</title>
     
-    <!-- Leaflet e Plugins -->
+    <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-heat@0.2.0/dist/leaflet-heat.js"></script>
+    
+    <!-- Leaflet Heat (CORRETO - CDN jsDelivr) -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
     <!-- MarkerCluster (CSS + JS) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -112,9 +114,21 @@
 
         let map, chartStatus, chartTimeline, heatLayer;
         let todasOcorrencias = [];
-        // agora usamos marker cluster
         let camadaMarcadores = null;
         let modoHeatmap = false;
+
+        // Aguardar que o plugin Leaflet.heat seja carregado
+        function waitForHeatPlugin(callback, attempts = 0) {
+            if (typeof L !== 'undefined' && typeof L.heatLayer === 'function') {
+                console.log('✅ Leaflet.heat carregado com sucesso!');
+                callback();
+            } else if (attempts < 50) {
+                setTimeout(() => waitForHeatPlugin(callback, attempts + 1), 100);
+            } else {
+                console.error('❌ Leaflet.heat não carregou após 5 segundos');
+                alert('Erro: Plugin de mapa de calor não disponível.');
+            }
+        }
 
         // debounce helper
         function debounce(fn, wait) {
@@ -129,16 +143,13 @@
             map = L.map('map').setView([-18.573, -39.732], 14);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-            // criar grupo de marcadores com clustering
             camadaMarcadores = L.markerClusterGroup();
             camadaMarcadores.addTo(map);
 
             carregarDados();
 
-            // atualizar marcadores ao mover/zoom (melhora UX ao navegar)
             map.on('moveend', debounce(renderizarMapa, 250));
 
-            // carregar imagem do popup só quando abrir
             map.on('popupopen', function(e) {
                 try {
                     const contentNode = e.popup._contentNode;
@@ -164,7 +175,6 @@
         }
 
         function atualizarTudo() {
-            // Fazer apenas uma passagem para calcular ranking + gráficos (evita múltiplas iterações)
             const contagem = { reclamacao: 0, sugestao: 0, elogio: 0 };
             let resolvidos = 0;
             const dias = {};
@@ -193,7 +203,6 @@
         }
 
         function renderizarMapa() {
-            // limpar marcadores (markerClusterGroup suporta clearLayers)
             camadaMarcadores.clearLayers();
             if (heatLayer) {
                 try { map.removeLayer(heatLayer); } catch(e){}
@@ -201,13 +210,22 @@
             }
 
             const tagsAtivas = Array.from(document.querySelectorAll('.filter-check:checked')).map(cb => cb.value);
-            // filtrar por tags primeiro
             const dadosFiltrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
 
             if (modoHeatmap) {
-                // ✅ CORREÇÃO: verificar se há dados antes de tentar criar o heatmap
+                // ✅ VERIFICAÇÃO CORRETA DO PLUGIN
+                if (typeof L.heatLayer !== 'function') {
+                    console.error('❌ Leaflet.heat não está disponível');
+                    alert('Erro: Plugin de mapa de calor não carregou corretamente. Tente recarregar a página.');
+                    modoHeatmap = false;
+                    document.getElementById('btnHeatmap').innerText = "🔥 Ativar Mapa de Calor";
+                    return;
+                }
+
                 if (dadosFiltrados.length === 0) {
                     alert('Nenhum dado disponível para o mapa de calor.');
+                    modoHeatmap = false;
+                    document.getElementById('btnHeatmap').innerText = "🔥 Ativar Mapa de Calor";
                     return;
                 }
 
@@ -217,35 +235,39 @@
                     const lat = parseFloat(oc.latitude);
                     const lng = parseFloat(oc.longitude);
                     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                        // intensidade: opcional - se a propriedade existir (ex: oc.intensity) usar, senão usar 0.5
                         const intensity = (oc.intensity ? parseFloat(oc.intensity) : 0.5);
                         pontosCalor.push([lat, lng, isFinite(intensity) ? intensity : 0.5]);
                     }
                 }
 
                 if (pontosCalor.length === 0) {
-                    console.warn('Nenhum ponto com GPS válido para o mapa de calor.');
-                    alert('Nenhum ponto com GPS válido. Verifique os dados.');
+                    console.warn('Nenhum ponto com GPS válido');
+                    alert('Nenhum ponto com GPS válido nos dados.');
+                    modoHeatmap = false;
+                    document.getElementById('btnHeatmap').innerText = "🔥 Ativar Mapa de Calor";
                     return;
                 }
 
-                // ✅ CORREÇÃO: usar try-catch para garantir que o plugin carregou
                 try {
-                    // remover camada de marcadores quando mostrando heatmap para evitar sobreposição
                     camadaMarcadores.clearLayers();
-
-                    heatLayer = L.heatLayer(pontosCalor, { radius: 25, blur: 15, max: 1.0, gradient: {0.4: 'blue', 0.65: 'lime', 1.0: 'red'} });
+                    heatLayer = L.heatLayer(pontosCalor, { 
+                        radius: 25, 
+                        blur: 15, 
+                        max: 1.0,
+                        gradient: {0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
+                    });
                     heatLayer.addTo(map);
-                    console.log('Heatmap renderizado com sucesso!');
+                    console.log('✅ Heatmap renderizado com sucesso com', pontosCalor.length, 'pontos');
                 } catch (err) {
                     console.error('Erro ao criar heatmap:', err);
-                    alert('Erro ao renderizar o mapa de calor. Tente recarregar a página.');
+                    alert('Erro ao renderizar o mapa de calor: ' + err.message);
+                    modoHeatmap = false;
+                    document.getElementById('btnHeatmap').innerText = "🔥 Ativar Mapa de Calor";
                 }
 
             } else {
-                // carregar apenas marcadores dentro do viewport atual para economizar (quando lots)
                 const bounds = map.getBounds();
-                const maxToRender = 2000; // limite de segurança para não travar (ajustável)
+                const maxToRender = 2000;
                 let rendered = 0;
 
                 for (let i = 0; i < dadosFiltrados.length; i++) {
@@ -255,13 +277,11 @@
                     const lng = parseFloat(oc.longitude);
                     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
-                    // se fora do bounds, pular (a menos que dataset pequeno)
                     if (dadosFiltrados.length > 500 && !bounds.contains([lat, lng])) continue;
 
                     const cor = getCor(oc.tags);
                     const fotoUrl = `${API_URL}/api/files/${oc.collectionId}/${oc.id}/${oc.foto}`;
 
-                    // criar ícone simples com cor (divIcon)
                     const iconHtml = `<span style="
                         display:block;
                         width:18px;height:18px;border-radius:50%;
@@ -275,7 +295,6 @@
 
                     const labelTag = (oc.tags && oc.tags.length) ? (oc.tags.charAt(0).toUpperCase() + oc.tags.slice(1)) : '';
 
-                    // usar data-src para lazy load da imagem do popup
                     const popupContent = `
                         <div style="width:210px; font-family: sans-serif;">
                             <b style="color:${cor}; font-size: 14px;">${labelTag.toUpperCase()}</b><br>
@@ -292,8 +311,6 @@
                     rendered++;
                     if (rendered > maxToRender) break;
                 }
-
-                // se dataset muito grande e muitos pontos, camadaMarcadores já faz cluster
             }
         }
 
@@ -308,7 +325,6 @@
         }
 
         function renderizarGraficosWith(resolvidos, pendentes, dias) {
-            // status chart
             if (chartStatus) chartStatus.destroy();
             chartStatus = new Chart(document.getElementById('chartStatus'), {
                 type: 'doughnut',
@@ -323,7 +339,6 @@
                 options: { plugins: { legend: { position: 'bottom' } } }
             });
 
-            // timeline
             if (chartTimeline) chartTimeline.destroy();
             chartTimeline = new Chart(document.getElementById('chartTimeline'), {
                 type: 'line',
@@ -350,13 +365,14 @@
         };
 
         document.getElementById('btnRefresh').onclick = carregarDados;
-        // debounce nas mudanças de filtro
         document.querySelectorAll('.filter-check').forEach(c => c.onchange = debounce(renderizarMapa, 200));
 
-        // relógio (1s é OK)
         setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleString('pt-BR'); }, 1000);
 
-        init();
+        // Inicializar quando o plugin estiver pronto
+        waitForHeatPlugin(() => {
+            init();
+        });
     </script>
 </body>
 </html>
