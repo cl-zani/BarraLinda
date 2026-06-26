@@ -9,7 +9,7 @@
     <!-- Leaflet e Plugins -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="https://unpkg.com/leaflet-heat@0.2.0/dist/leaflet-heat.js"></script>
 
     <!-- MarkerCluster (CSS + JS) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -205,10 +205,9 @@
             const dadosFiltrados = todasOcorrencias.filter(oc => tagsAtivas.includes(oc.tags));
 
             if (modoHeatmap) {
-                // garantir que plugin está carregado
-                if (!L.heatLayer) {
-                    console.error('Leaflet.heat não está disponível.');
-                    alert('Mapa de calor indisponível (plugin ausente).');
+                // ✅ CORREÇÃO: verificar se há dados antes de tentar criar o heatmap
+                if (dadosFiltrados.length === 0) {
+                    alert('Nenhum dado disponível para o mapa de calor.');
                     return;
                 }
 
@@ -225,15 +224,23 @@
                 }
 
                 if (pontosCalor.length === 0) {
-                    console.warn('Nenhum ponto válido para o mapa de calor.');
+                    console.warn('Nenhum ponto com GPS válido para o mapa de calor.');
+                    alert('Nenhum ponto com GPS válido. Verifique os dados.');
                     return;
                 }
 
-                // remover camada de marcadores quando mostrando heatmap para evitar sobreposição
-                try { camadaMarcadores.clearLayers(); } catch(e){}
+                // ✅ CORREÇÃO: usar try-catch para garantir que o plugin carregou
+                try {
+                    // remover camada de marcadores quando mostrando heatmap para evitar sobreposição
+                    camadaMarcadores.clearLayers();
 
-                heatLayer = L.heatLayer(pontosCalor, { radius: 25, blur: 15, max: 1.0 });
-                heatLayer.addTo(map);
+                    heatLayer = L.heatLayer(pontosCalor, { radius: 25, blur: 15, max: 1.0, gradient: {0.4: 'blue', 0.65: 'lime', 1.0: 'red'} });
+                    heatLayer.addTo(map);
+                    console.log('Heatmap renderizado com sucesso!');
+                } catch (err) {
+                    console.error('Erro ao criar heatmap:', err);
+                    alert('Erro ao renderizar o mapa de calor. Tente recarregar a página.');
+                }
 
             } else {
                 // carregar apenas marcadores dentro do viewport atual para economizar (quando lots)
